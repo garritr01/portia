@@ -1,0 +1,10 @@
+/portiaVenv
+/.vscode
+
+/modeling
+/auth
+
+*Dockerfile
+*.dockerignore
+*.env
+*.yml
