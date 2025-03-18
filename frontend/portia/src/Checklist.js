@@ -5,11 +5,12 @@ export const Checklist = () => {
 	const [newItem, setNewItem] = useState('');
 	const [editID, setEditID] = useState(null);
 	const [editItem, setEditItem] = useState('');
+	const backendURL = 'https://portia-backend.fly.dev/checklist'//'http://localhost:5000/checklist' OR 'https://portia-backend.fly.dev/checklist'
 
 	// Fetch checklist items from the Firestore w/ Flask
 	useEffect(() => {
 		fetch(
-			'http://portiaBackend/checklist'
+			`${backendURL}`
 		).then((response) => 
 			response.json()
 		).then((data) => {
@@ -22,7 +23,7 @@ export const Checklist = () => {
 	// Handle added item
 	const addItem = () => {
 		if (newItem.trim()) {
-			fetch('http://portiaBackend/checklist', {
+			fetch(`${backendURL}`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -42,7 +43,7 @@ export const Checklist = () => {
 	// Handle updating the item name
 	const updateItemName = (id, newName) => {
 		if (newName.trim()) {
-			fetch(`http://portiaBackend/checklist/${id}`, {
+			fetch(`${backendURL}/${id}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ export const Checklist = () => {
 
 	// Handle completion checkboxes
 	const toggleCompleted = (id, completed) => {
-		fetch(`http://portiaBackend/checklist/${id}`, {
+		fetch(`${backendURL}/${id}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json',

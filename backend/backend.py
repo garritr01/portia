@@ -6,9 +6,15 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+# SET TO FALSE FOR DEPLOYMENT
+devMode = False
+
 # Start Flask app
 app = Flask(__name__)
-CORS(app, origins=["https://portia-wispy-field-3605.fly.dev"])  # "http://localhost:3000"
+if devMode:
+	CORS(app, origins=["https://portia-wispy-field-3605.fly.dev"])
+else:
+	CORS(app, origins=["http://localhost:3000"])
 
 # Initialize Firebase w credentials
 # authDir = Path("/mnt/c/Users/garri/Documents/SS2025/CIS658-WA/portiaApp/auth")
@@ -31,6 +37,10 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 collections = db.collections()
 checklist_ref = db.collection("checklist-p-1-2")
+
+@app.route("/", methods=["GET"])
+def test():
+	return "Hello from portia backend :)"
 
 # Get user id from token
 def verify_token(id_token):
@@ -113,4 +123,7 @@ def update_checklist_item(item_id):
 		return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-	app.run(debug=True)
+	if devMode:
+		app.run(debug=True)
+	else:
+		pass
