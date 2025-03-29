@@ -11,3 +11,77 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/** --- MAIN MENU DESIGN CLASSES ---------------------- */
+.leftMenu {
+	position: fixed;
+	display: flex;
+	flex-direction: column;
+	padding: 2% 2% 0% 2%;
+	inset: 0% 80% 0% 0%;
+	color: white;
+	background-color: rgb(107, 105, 105);
+}
+
+.leftMenu.active {
+	inset: 0% 50% 0% 0%;
+	z-index: 2;
+}
+
+.topMenu {
+	position: fixed;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	padding: 2%;
+	inset: 0% 0% 85% 20%; 
+	color: white;
+	background-color: rgb(143, 141, 141);
+}
+
+.topMenu button {
+	margin: 0px 10px 0px 10px;
+}
+
+.calendarContainer {
+	position: fixed;
+	inset: 15% 0% 0% 20%;
+	padding: 2%;
+	background-color: rgb(206, 205, 205);
+	z-index: 1;
+}
+
+/** --- CALENDAR CLASSES ------------------------------ */
+
+.calendar {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	inset: 0% 0% 0% 0%;
+	padding: 0;
+	margin: 0;
+}
+
+.calendarRow {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	justify-content: baseline;
+}
+
+.cell {
+	margin: 0;
+	padding: 0;
+	border: 1px solid black;
+}
+
+.activeCell {
+	z-index: 1;
+	background-color: green;
+}
+
+.adjacentCell {
+	z-index: 1;
+	background-color: orange;
+}

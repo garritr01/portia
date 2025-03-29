@@ -23,7 +23,7 @@ export const Checklist = () => {
 	// Handle added item
 	const addItem = () => {
 		if (newItem.trim()) {
-			fetch(`${backendURL}`, {
+			fetch(`${backendURL}/new`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -32,10 +32,29 @@ export const Checklist = () => {
 			}).then((response) => 
 				response.json()
 			).then((data) => {
-				setChecklistItems([...checklistItems, data]);
+				setChecklistItems(prevItems =>[data, ...prevItems]);
 				setNewItem('');
 			}).catch((error) => {
 				console.error('Error adding checklist item:', error);
+			});
+		}
+	};
+
+	// Handle updating the item name
+	const deleteItem = (id) => {
+		if (id) {
+			fetch(`${backendURL}/${id}`, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			}).then((response) =>
+				response.json()
+			).then(() => {
+				const updatedItems = checklistItems.filter((item) =>item.id !== id);
+				setChecklistItems(updatedItems);
+			}).catch((error) => {
+				console.error('Error updating checklist item:', error);
 			});
 		}
 	};
@@ -113,6 +132,7 @@ export const Checklist = () => {
 									onChange={() => toggleCompleted(item.id, item.completed)}
 								/>
 								<button onClick={() => {setEditID(item.id); setEditItem(item.name);}}>Edit</button>
+								<button onClick={() => {deleteItem(item.id); }}>Remove</button>
 							</>
 						}
 					</li>

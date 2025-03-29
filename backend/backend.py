@@ -12,9 +12,9 @@ devMode = False
 # Start Flask app
 app = Flask(__name__)
 if devMode:
-	CORS(app, origins=["https://portia-wispy-field-3605.fly.dev"])
-else:
 	CORS(app, origins=["http://localhost:3000"])
+else:
+	CORS(app, origins=["https://portia-wispy-field-3605.fly.dev"])
 
 # Initialize Firebase w credentials
 # authDir = Path("/mnt/c/Users/garri/Documents/SS2025/CIS658-WA/portiaApp/auth")
@@ -81,46 +81,63 @@ def get_checklist():
 
 
 # Add a new checklist item
-@app.route("/checklist", methods=["POST"])
+@app.route("/checklist/new", methods=["POST"])
 def add_checklist_item():
 	try:
 		data = request.get_json()
-		if not data.get("name"):
-			return jsonify({"error": "Name is required"}), 400
-		new_item = {"name": data["name"], "completed": False}
-		doc_ref = checklist_ref.add(new_item) # Add item to Firestore
+		name = data.get("name")
+		new_item = {"name": name, "completed": False}
+		_, doc_ref = checklist_ref.add(new_item) # Add item to Firestore
 		new_item["id"] = doc_ref.id  # Add Firestore ID to response
 		return jsonify(new_item), 201
 	except Exception as e:
+		print(str(e))
 		return jsonify({"error": str(e)}), 500
 
 
 # Update a checklist item
 @app.route("/checklist/<item_id>", methods=["PUT"])
 def update_checklist_item(item_id):
+    try:
+        data = request.get_json()
+        name = data.get("name")
+        completed = data.get("completed")
+
+        # Define content to update
+        updateContent = {}
+        if name is not None:
+            updateContent["name"] = name
+        if completed is not None:
+            print('compl', completed)
+            updateContent["completed"] = completed
+
+        # Update the in Firestore
+        doc_ref = checklist_ref.document(item_id)
+        doc_ref.update(updateContent)
+
+        # Return updated item
+        updated_item = doc_ref.get().to_dict()
+        updated_item["id"] = doc_ref.id
+        return jsonify(updated_item), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Delete a checklist item
+@app.route("/checklist/<item_id>", methods=["DELETE"])
+def delete_checklist_item(item_id):
 	try:
-		data = request.get_json()
-		name = data.get("name")
-		completed = data.get("completed")
-
-		# Define content to update
-		updateContent = {}
-		if name is not None:
-			updateContent["name"] = name
-		if completed is not None:
-			print('compl', completed)
-			updateContent["completed"] = completed
-			
-		# Update the in Firestore
 		doc_ref = checklist_ref.document(item_id)
-		doc_ref.update(updateContent)
+		if doc_ref.get().exists:
+			doc_ref.delete()
+			return jsonify({"message": f"Item {item_id} deleted successfully"}), 200
+		else:
+			return jsonify({"error": "Item not found"}), 404
 
-		# Return updated item
-		updated_item = doc_ref.get().to_dict()
-		updated_item["id"] = doc_ref.id
-		return jsonify(updated_item), 200
 	except Exception as e:
+		print("Error:", str(e))
 		return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
 	if devMode:
