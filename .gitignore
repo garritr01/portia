@@ -2,10 +2,9 @@
 /.vscode
 
 /modeling
+/notes
 /auth
 
-*Dockerfile
-*.dockerignore
 *.env
 *.yml
 *deployNotes.md

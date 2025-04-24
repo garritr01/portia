@@ -1,13 +1,14 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+
+// This was not the most clean choice of organization, but contexts were helpful
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 
-	// Listen for auth changes
 	useEffect(() => {
 		const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
 			if (currentUser) {
@@ -60,3 +61,28 @@ export const Logout = async () => {
 		console.error('Error logging out:', error.message);
 	}
 };
+
+export const ScreenContext = createContext();
+
+export const ScreenProvider = ({ children, threshold = 600 }) => {
+	const [smallScreen, setSmallScreen] = useState(window.innerWidth <= threshold);
+
+	useEffect(() => {
+		const handleResize = () => {
+			const nowSmall = window.innerWidth <= threshold;
+			setSmallScreen(prev => (prev !== nowSmall ? nowSmall : prev));
+		};
+
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, [threshold]);
+
+	return (
+		<ScreenContext.Provider value={{ smallScreen }}>
+			{children}
+		</ScreenContext.Provider>
+	);
+};
+
+export const useScreen = () => useContext(ScreenContext);
+export const useUser = () => useContext(UserContext);
