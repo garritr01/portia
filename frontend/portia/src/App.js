@@ -1,13 +1,19 @@
-/* App.js */
 import React, { useState, useEffect } from 'react';
-import { useSwipe } from './dynamicView';
-import { useScreen, Login, useUser } from './Contexts';
-import { AppLayout } from './AppLayout';
-import { DayView, MonthView, YearView } from './Calendar';
-import { useFetchWithAuth } from './Requests';
-import { returnDates, addTime } from './dateTimes'
+import { LeftMenu } from './views/LeftMenu';
+import { useSwipe } from './helpers/DynamicView';
+import { Login, Logout, useUser } from './contexts/UserContext';
+import { useScreen } from './contexts/ScreenContext';
+import { DayView, MonthView, YearView } from './views/Calendar';
+import { useConnCheck, useAuthCheck } from './requests/Tests';
+import { useFetchEvents, useFetchForms, useFetchRRules, getAllRecurs } from './requests/Events';
+import { useFetchChecklist } from './requests/Checklist';
+import { returnDates, addTime } from './helpers/DateTimeCalcs';
 
 export const App = () => {
+	// --- INITIAL TESTS ----------------------------------------------------------------
+	useConnCheck(); // Hit backend to check connectivity
+	const { user } = useUser() || false;
+	useAuthCheck(user); // Hit backend with auth to check auth
 
 	// --- VIEW HANDLERS ----------------------------------------------------------------
 	// Screen dim context
@@ -17,36 +23,89 @@ export const App = () => {
 	// Minimize left menu when small screen
 	useSwipe({ onSwipeLeft: smallScreen && leftExpanded ? () => setLeftExpanded(false) : null });
 	
-	// --- DATE HANDLERS ----------------------------------------------------------------
-	// User context
-	const { user } = useUser() || false;
+	// --- DATE AND DEPENDENT HANDLERS ----------------------------------------------------------------
 	// Determines calendar view ('year', 'month', 'day'-ish)
 	const [span, setSpan] = useState('day');
 	// Day user most recently interacted with
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	// Array containing each date in view
 	const [days, setDays] = useState([]);
-
-	// --- DATA HANDLERS ----------------------------------------------------------------
-	// Give initial state to forms
-	const [form, setForm] = useState({ path: '', content: [], startTime: null, endTime: null });
-	// Recorded events
-	const modEvents = useEventsList(); // 'Moderate' useEffect (allow events to be updated)
-	const [events, setEvents] = useState([]);
-
-	useEffect(() => { console.log(user)}, [])
-
+	const startDate = days[0]?.toISOString() ?? null ;
+	const endDate = days[days.length - 1]?.toISOString() ?? null;
+	// Alter date range when necessary
 	useEffect(() => {
-		setEvents(modEvents);
-	}, [days]);
-
-	useEffect(() => {
+		console.log(leftExpanded, smallScreen);
 		setDays((smallScreen || leftExpanded) ? [selectedDate] : returnDates(selectedDate, 'day'));
-		if ((smallScreen || leftExpanded) && span != 'day') { setSpan('day') }
+		if ((smallScreen || leftExpanded) && span !== 'day') { setSpan('day') }
 	}, [selectedDate, span, smallScreen, leftExpanded]);
 
-	useEffect(() => console.log(events.length), [events]);
+	// Fetch and update state of calendar objects
+	const fetchEvents = useFetchEvents(startDate, endDate);
+	const fetchForms = useFetchForms();
+	const fetchRRules = useFetchRRules(startDate, endDate);
+	const [events, setEvents] = useState([]);
+	const [forms, setForms] = useState([]);
+	const [rRules, setRRules] = useState([]);
+	const [recurs, setRecurs] = useState([]);
+	useEffect(() => {
+		if (!user || !startDate || !endDate) { 
+			setEvents([]);
+			return;	 
+		}
+		fetchEvents(startDate, endDate)
+			.then(setEvents)
+			.catch(() => setEvents([]));
+	}, [fetchEvents, startDate, endDate]);
+	useEffect(() => {
+		if (!user) {
+			setForms([]);
+			return;
+		}
+		fetchForms()
+			.then(setForms)
+			.catch(() => setForms([]));
+	}, [fetchForms]);
+	useEffect(() => {
+		if (!user) {
+			setRRules([]);
+			return;
+		}
+		fetchForms()
+			.then(setRRules)
+			.catch(() => setRRules([]));
+	}, [fetchRRules]);
+	/*useEffect(() => {
+		if (!user) {
+			setRecurs([]);
+		}
+		const newRecurs = getAllRecurs(rRules, startDate, endDate);
+		if (newRecurs) {
+			setRecurs(newRecurs);
+		} else {
+			setRecurs([]);
+		}
+	}, [rRules, startDate, endDate]);*/
 
+
+	// --- CHECKLIST HANDLERS --------------------------------------------------------------
+	// Define checklist items
+	const [checklist, setChecklist] = useState([]);
+	const fetchChecklist = useFetchChecklist();
+	useEffect(() => {
+		if (!user) { 
+			setChecklist([]);
+			return;
+		 }
+		fetchChecklist()
+			.then(setChecklist)
+			.catch(() => setChecklist([]));
+	}, [fetchChecklist]);
+
+	// --- FORM HANDLERS -------------------------------------------------------------------
+	// Define user input forms
+	const [form, setForm] = useState({ path: '', content: [], startTime: null, endTime: null });
+
+	// Update date range and span when month or day cell is clicked
 	const onCellClick = (date, view) => {
 		const updatedDate = new Date(date);
 		if (view === 'year') {
@@ -55,7 +114,6 @@ export const App = () => {
 		} else if (view === 'month') {
 			updatedDate.setDate(1);
 		}
-		console.log(`${view}View using `, date);
 		setSelectedDate(updatedDate);
 		setSpan(view);
 	};
@@ -64,63 +122,50 @@ export const App = () => {
 		<>
 			{!user ? <Login/>
 				:
-				<AppLayout 
-					menuItems={[]}
-					children={
-						span === 'year' ? <YearView 
-							selectedDate={selectedDate} 
-							onMonthClick={onCellClick}
-							form={form}
-							setForm={setForm} />
-						: span === 'month' ? <MonthView 
-							selectedDate={selectedDate} 
-							onDayClick={onCellClick}
-							form={form}
-							setForm={setForm} />
-						: span === 'day' ? <DayView 
-							selectedDate={selectedDate}
-							days={days}
-							events={events}
-							setEvents={setEvents}
-							onDayClick={onCellClick}
-							form={form}
-							setForm={setForm} 
-							leftExpanded={leftExpanded} />
-						: <p>Not sure how you got here.</p>
-					}
-					leftExpanded={leftExpanded}
-					setLeftExpanded={setLeftExpanded}
+				<div className="container">
+					<LeftMenu
+						Logout={Logout}
+						checklist={checklist}
+						setChecklist={setChecklist}
+						leftExpanded={leftExpanded}
+						smallScreen={smallScreen}
 					/>
+					{!smallScreen && <button className="resizer" onClick={() => setLeftExpanded(!leftExpanded)}>||</button>}
+					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
+						{smallScreen && <button className="hamburger" onClick={() => setLeftExpanded(true)}>☰</button>}
+						{span === 'year' ? 
+							<YearView 
+								selectedDate={selectedDate} 
+								onMonthClick={onCellClick}
+								form={form}
+								setForm={setForm} />
+							: span === 'month' ? 
+							<MonthView 
+								selectedDate={selectedDate} 
+								onDayClick={onCellClick}
+								form={form}
+								setForm={setForm} />
+							: span === 'day' ? 
+							<DayView 
+									events={events}
+									setEvents={setEvents}
+									forms={forms}
+									setForms={setForms}
+									recurs={recurs}
+									setRecurs={setRecurs}
+									rRules={rRules}
+									setRRules={setRRules}
+									selectedDate={selectedDate}
+									days={days}
+									onDayClick={onCellClick}
+									leftExpanded={leftExpanded}
+									span={span}
+								/>
+							: <p>Not sure how you got here.</p>
+						}
+					</div>
+				</div>
 			}
 		</>
 	);
 };
-
-const useEventsList = (startDate, endDate) => {
-
-	const fetchWithAuth = useFetchWithAuth();
-	const [events, setEvents] = useState([]);
-
-	useEffect(() => {
-		if (!startDate || !endDate) {
-			setEvents([]);
-			return;
-		}
-		const query = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
-		(async () => {
-			try {
-				const res = await fetchWithAuth(`/events`, query, {});
-				if (!res.ok) throw new Error(`Status ${res.status}`);
-				const data = await res.json();
-
-				data.sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp));
-				setEvents(data.map((e) => ({ ...e, startStamp: new Date(e.startStamp), endStamp: new Date(e.endStamp) })));
-			} catch {
-				setEvents([]);
-			}
-		})();
-	}, [fetchWithAuth, startDate, endDate]);
-
-	return events;
-};
-

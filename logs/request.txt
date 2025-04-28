@@ -1,0 +1,2 @@
+(2025-04-26 14:19:29,196) DEBUG    [request] :: GET /test/conn uid=anon took=3.5ms
+(2025-04-26 14:19:30,484) DEBUG    [request] :: GET /test/auth uid=RHivBE3cl9e2KpxOEcmb9Lu9BPM2 took=110.1ms

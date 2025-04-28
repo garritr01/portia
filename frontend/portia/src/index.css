@@ -35,19 +35,20 @@ body,
 	background: var(--bg2);
 	border-right: 0.0625rem solid var(--border2);
 	box-sizing: border-box;
+	overflow-x: hidden;
 	overflow-y: auto;
-	transition: flex-basis 0.3s ease, box-shadow 0.3s ease;
+	transition: flex-basis 0.3s ease;
 	position: relative;
 }
 
 .calendar {
-	flex: 0 0 80%;
+	flex: 0 0 50%;
 	background: var(--bg1);
 	padding: 0.625rem;
 	border-left: 0.0625rem solid var(--border2);
 	box-sizing: border-box;
 	overflow: hidden;
-	transition: flex-basis 0.3s ease, box-shadow 0.3s ease;
+	transition: flex-basis 0.3s ease;
 	position: relative;
 	cursor: default;
 }
@@ -56,8 +57,8 @@ body,
 	flex-basis: 50%;
 }
 
-.leftMenu.expand~.calendar {
-	flex-basis: 50%;
+.calendar.expand {
+	flex-basis: 80%;
 }
 
 .resizer {
@@ -97,21 +98,177 @@ body,
 
 .portal {
 	position: fixed;
-	top: 50%;
+	top: 35%;
 	left: 50%;
 	transform: translate(-50%, -50%);
 	z-index: 1000;
 	background: var(--bg1);
-	border: 1px solid var(--border3);
+	box-sizing: border-box;
 	box-shadow: 0 0.125rem 0.5rem var(--shadow1);
-	padding: 1rem;
-	border-radius: 0.5rem;
 	width: 90vw;
 	max-width: 80%;
 	max-height: 70%;
 	overflow: auto;
 }
 
+
+/* ---- CHECKLIST ---- */
+
+.checklist {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+.submitButton,
+.relButton {
+	background: var(--bg2);
+	border: 0.0625rem solid var(--border2);
+	border-radius: 0.25rem;
+	height: 1.5rem;
+	top: 0;
+	align-items: center;
+	justify-content: center;
+	font-size: 1rem;
+	font-weight: bold;
+	color: var(--border3);
+	cursor: pointer;
+	transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+
+.relButton {
+	position: relative;
+}
+
+.submitButton {
+	position: absolute;
+}
+
+.submitButton.right {
+	right: 0;
+}
+
+.submitButton.left {
+	left: 0;
+}
+
+.submitButton.add {
+	width: 1.5rem;
+}
+
+.submitButton:hover,
+.relButton:hover {
+	background: var(--bg3);
+	color: #fff;
+	transform: scale(1.1);
+	z-index: 1;
+}
+
+.submitRow {
+	position: absolute;
+	top: 0;
+	display: flex;
+	flex-direction: row;
+}
+
+.submitRow.right {
+	right: 0;
+}
+
+.submitRow.left {
+	left: 0;
+}
+
+.submitRow > .submitButton {
+	position: relative;
+}
+
+.checklist .item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding-left: .5rem;
+	transition: transform 0.3s ease;
+}
+
+.checklist .item .label {
+	position: relative;
+	margin: 0;
+	padding-bottom: 0.125rem;
+	padding-top: 0.125rem;
+}
+
+.form {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg1);
+	border-radius: 0.5rem;
+	border: 1px solid var(--border3);
+	box-shadow: 0 0.125rem 0.5rem var(--shadow1);
+	top: 0;
+	right: 0;
+	width: 80%;
+	padding: 0.5rem;
+	padding-top: 1.5rem;
+	z-index: 1;
+}
+
+.portal .form {
+	position: relative;
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.checklist .item .form {
+	position: relative;
+}
+
+.formRow {
+	display: flex;
+	width: 100%;
+	flex-direction: row;
+	align-items: center;
+	border-radius: 0.125rem;
+}
+
+.formCell {
+	display: flex;
+	align-items: center;
+	border-radius: 0.0625rem;
+	height: 1.5rem;
+	padding-left: 0.25rem;
+	padding-right: 0.25rem;
+	margin: 0;
+}
+
+.formRow input {
+	background: var(--bg1);
+	border: 1px solid var(--border3);
+}
+
+.formCell input.time {
+	width: 1rem;
+}
+
+.formCell input.yr {
+	width: 2rem;
+}
+
+.formCell.sep,
+.formCell .sep {
+	margin: 0;
+	padding: 0.125rem 0.25rem 0.125rem 0.25rem;
+	user-select: none;
+}
+
+textarea.formRow {
+	width: "100%";
+	resize: "vertical";
+}
 
 /* ---- CALENDAR NAV ---- */
 
@@ -367,11 +524,20 @@ body,
 	box-sizing: border-box;
 }
 
-.leftMenu.expand ~ .calendar .dayCellSmall {
-	flex: 0 0 0;
+/* ---- NOTIFICATIONS ---- */
+
+.portal.notify,
+.portal.error {
+	top: 10%;
 }
 
-/* ---- NOTIFICATIONS ---- */
+.portal.notify {
+	background-color: #4aaa5d;
+}
+
+.portal.error {
+	background-color: #e45c4d;
+}
 
 .invalidFlash {
 	animation: flashRed 0.5s ease;
@@ -467,8 +633,7 @@ body,
 /* ---- FORM ---- */
 
 .logoutButton,
-.createButton,
-.submitButton {
+.createButton {
 	background: var(--bg2);
 	border: 0.0625rem solid var(--border2);
 	border-radius: 0.25rem;
@@ -492,13 +657,8 @@ body,
 	border: 1px solid var(--border3);
 }
 
-.submitButton {
-	position: relative;
-}
-
 .createButton:hover,
-.lougoutButton:hover,
-.submitButton:hover {
+.logoutButton:hover {
 	background: var(--bg3);
 	color: #fff;
 	transform: scale(1.1);
@@ -528,22 +688,6 @@ body,
 	border-radius: 0.0625rem;
 	height: 1.5rem;
 }
-
-.quickCell input.time {
-	width: 1rem;
-}
-
-.quickCell input.year {
-	width: 2rem;
-}
-
-.quickCell.sep,
-.quickCell .sep {
-	margin: 0;
-	padding: 0.125rem 0.25rem 0.125rem 0.25rem;
-	user-select: none;
-}
-
 
 /* ---- BIG SCREEN ---- */
 
@@ -589,10 +733,16 @@ body,
 		touch-action: auto;
 	}
 
-	.leftMenu.expand~.calendar {
+	.calendar {
 		transform: translateX(100%);
 		pointer-events: none;
 		touch-action: none;
+	}
+
+	.calendar.expand {
+		transform: translateX(0);
+		pointer-events: auto;
+		touch-action: auto;
 	}
 
 }

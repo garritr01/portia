@@ -53,7 +53,7 @@ export const useSwipe = ({ onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown }) 
 
 };
 
-export const DropSelect = ({ options = [], value, onChange }) => {
+export const DropSelect = ({ options = [], value, onChange, onChangeIdx = null }) => {
 	// close on click
 	const [open, setOpen] = useState(false);
 	// positional refs
@@ -100,7 +100,13 @@ export const DropSelect = ({ options = [], value, onChange }) => {
 								<div
 									key={idx}
 									className={`droption ${option.value === value.value ? "selected" : ""}`}
-									onClick={() => { onChange(option.value); setOpen(false); }}>
+									onClick={() => { 
+										if (onChangeIdx) {
+											onChange(onChangeIdx, option.value); setOpen(false);
+										} else {
+											onChange(option.value); setOpen(false); 
+										}
+									}}>
 									{option.display}
 								</div>
 							))}
@@ -122,3 +128,15 @@ export const invalidInputFlash = (inputId) => {
 		}, 500);
 	}
 };
+
+export const sortChecklist = (checklist) => {
+	// Sort by priority or last update
+	return checklist.sort((a, b) => {
+		// 1. by priority 
+		if (a.priority !== b.priority) {
+			return b.priority - a.priority // descending order
+		}
+		// 2. by last update, earlier (less recent) first
+		return new Date(a.updatedAt) - new Date(b.updatedAt);
+	});
+}

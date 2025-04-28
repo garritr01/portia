@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify
 from auth import requireAuth
-from db import usersCo
+from backend.firebase import usersCo
 from logger import getLogger
 import datetime as dt
 from dateutil.tz import tzlocal, tzutc
 from dateutil.rrule import rrule, WEEKLY, MONTHLY, MO, WE
-from routes.eventPOST import updateEvent
+from backend.routes.events import updateEvent
 from routes.checklist import addItem
 from helpers import dt2iso
 

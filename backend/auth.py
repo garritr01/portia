@@ -1,25 +1,48 @@
-from flask import request
-from firebase_admin import auth
+from functools import wraps
+from flask import request, jsonify, abort
+import firebase_admin
+from firebase_admin import auth, credentials
+from backend.config import FIREBASE_CREDS
+from backend.logger import getLogger
+
+logger = getLogger(__name__)
+
+if not firebase_admin._apps:
+	cred = credentials.Certificate(FIREBASE_CREDS)
+	firebase_admin.initialize_app(cred)
 
 def requireAuth():
 	"""
-	Authenticate based 'Bearer ...' token
+	Check the token w/ Firebase
 	"""
-	print('in rq auth')
-	header = request.headers.get("Authorization","")
+	header = request.headers.get("Authorization", "")
 	if not header.startswith("Bearer "):
-		print("Bearer not present." )
-		return None, ({ "error": "Bearer not present." }, 401)
-	
+		return None, ({"error": "Bearer missing"}, 401)
+
 	token = header.split(" ", 1)[1]
 	if not token:
-		print("No token.")
-		return None, ({ "error": "No token." }, 401)
-	
+		return None, ({"error": "Firebase found no token"}, 401)
+
 	try:
-		uID =  auth.verify_id_token(token).get("uid", None)
+		decoded = auth.verify_id_token(token, check_revoked=True)
+		uid = decoded.get("uid")
+		if not uid:
+			raise ValueError("UID not found in token")
 	except Exception as e:
-		print(f"Token verification failure: {e}")
-		return None, ({ "error": f"Token verification failure: {e}" }, 401)
-	
-	return uID, None
+		return None, ({"error": f"Token verification failed: {e}"}, 401)
+
+	return uid, None
+
+# requireAuth but decorator
+def handleFirebaseAuth(f):
+
+	@wraps(f)
+	def wrapper(*args, **kwargs):
+		uid, err = requireAuth()
+		if err:
+			payload, status = err
+			return jsonify(payload), status
+		request.uid = uid
+		return f(uid, *args, **kwargs)
+
+	return wrapper
