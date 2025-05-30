@@ -1,10 +1,15 @@
 /portiaVenv
 /.vscode
 
-/modeling
-/notes
+/artifacts
+
+/logs
+/backend/logs
+
+/backend/__pycache__
+/backend/routes/__pycache__
+
 /auth
 
 *.env
 *.yml
-*deployNotes.md

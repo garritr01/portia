@@ -1,5 +1,0 @@
-(2025-04-26 14:18:16,318) INFO     [backend] :: Starting app on port 5000, allowing CORS from http://localhost:3000Found Firebase credentials
-(2025-04-26 14:18:25,508) INFO     [backend] :: Starting app on port 5000, allowing CORS from http://localhost:3000Found Firebase credentials
-(2025-04-26 14:19:29,188) INFO     [backend.routes.test] :: testConn endpoint hit
-(2025-04-26 14:19:29,190) INFO     [backend.routes.test] :: testConn endpoint hit
-(2025-04-26 14:20:25,205) INFO     [backend] :: Starting app on port 5000, allowing CORS from http://localhost:3000Found Firebase credentials
