@@ -12,4 +12,27 @@
 /auth
 
 *.env
-*.yml
+
+# REACT auto-generated .gitignore
+
+# dependencies
+/portia/node_modules
+/portia/.pnp
+/portia/.pnp.js
+
+# testing
+/portia/coverage
+
+# production
+/portia/build
+
+# misc
+/portia/.DS_Store
+/portia/.env.local
+/portia/.env.development.local
+/portia/.env.test.local
+/portia/.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
