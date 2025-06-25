@@ -157,7 +157,7 @@ body,
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 1000;
-	background: var(--bg1);
+	background-color: var(--bg1);
 	box-sizing: border-box;
 	border-radius: 0.5rem;
 	box-shadow: 0 0.125rem 0.5rem var(--shadow1);
@@ -603,32 +603,6 @@ textarea.formRow {
 }
 /* #endregion ---- DAY VIEW ---- */
 
-/* #region ---- NOTIFICATIONS ---- */
-
-.portal.notify,
-.portal.error {
-	top: 10%;
-}
-
-.portal.notify {
-	background-color: #4aaa5d;
-}
-
-.portal.error {
-	background-color: #e45c4d;
-}
-
-.invalidFlash {
-	animation: flashRed 0.5s ease;
-}
-
-@keyframes flashRed {
-	0% {background-color: rgba(255, 0, 0, 0.2);}
-	50% {background-color: rgba(255, 0, 0, 0.4);}
-	100% {background-color: rgba(255, 0, 0, 0.2);}
-}
-/* #endregion ---- NOTIFICATIONS ---- */
-
 /* #region ---- DROPDOWN ---- */
 
 .drop {
@@ -855,6 +829,50 @@ textarea.formRow {
 }
 
 /* #endregion ---- SMALL SCREEN ---- */
+
+/* #region ---- NOTIFICATIONS ---- */
+
+.portalNotify,
+.portalError {
+	padding: 0.25rem 0.5rem;
+	white-space: normal;
+	word-break: break-word;
+	box-sizing: border-box;
+	border-radius: 0.5rem;
+	box-shadow: 0 0.125rem 0.5rem var(--shadow1);
+}
+
+.portalNotify {
+	background-color: #4aaa5d;
+}
+
+.portalError {
+	background-color: #e45c4d;
+	z-index: 1001;
+}
+
+.erred,
+.erred *,
+.erred input {
+	background-color: #f8c9c9;
+}
+
+.erred {
+	border-radius: 0.25rem;
+	border: 2px solid #e0211b;
+}
+
+.errIndicator {
+	color: #e0211b;
+}
+
+@keyframes flashRed {
+	0% {background-color: rgba(255, 0, 0, 0.2);}
+	50% {background-color: rgba(255, 0, 0, 0.4);}
+	100% {background-color: rgba(255, 0, 0, 0.2);}
+}
+
+/* #endregion ---- NOTIFICATIONS ---- */
 
 /* #region ---- MASS UPDATE ---- */
 

@@ -1,8 +1,7 @@
 /* Calendar */
 import React, { useState, useEffect, useMemo, useRef, useReducer } from 'react';
-import { createPortal } from 'react-dom';
 import { useScreen } from '../contexts/ScreenContext';
-import { TypeCheck } from '../helpers/InputValidation';
+import { validateForm, validateEvent, validateSchedule } from '../helpers/InputValidation';
 import {
 	clamp,
 	returnDates,
@@ -15,8 +14,11 @@ import {
 	monthLength,
 	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
-import { useSwipe, DropSelect, InfDropSelect, invalidInputFlash } from '../helpers/DynamicView';
+import { useSwipe } from '../helpers/DynamicView';
+import { ErrorInfoButton, invalidInputFlash } from '../components/Notifications';
 import { useSave } from '../requests/General';
+import { DropSelect, InfDropSelect } from '../components/Dropdown';
+import { Floater } from '../components/Portal';
 
 const makeEmptyForm = () =>  ({
 	_id: null, // Carry _id if already exists
@@ -27,16 +29,16 @@ const makeEmptyForm = () =>  ({
 const makeEmptyEvent = () =>  ({
 	_id: null,
 	formID: null, // Stores initial form used to create event form, updates based on new state of form
-	recurID: null, // Stores the recurID
+	scheduleID: null, // Stores the recurID
 	path: '',
-	recurStart: null, // Store the rRule instance's timestamp
+	scheduleStart: null, // Store the schedule instance's timestamp (for omitting schedule on calendar)
 	info: [],
 	startStamp: new Date(), // Define start time of event
 	endStamp: new Date(),
 });
-const makeEmptySchedule = () => ({
+const makeEmptySchedule = (newPath = '') => ({
 	_id: null,
-	path: '',
+	path: newPath,
 	formID: null, // Form to access for recording
 	startStamp: new Date(),
 	endStamp: new Date(), // Use date here, but store as endStamp in ms
@@ -51,6 +53,7 @@ const initialCompositeState = {
 	event: makeEmptyEvent(),
 	schedules: [],
 	dirty: { form: false, event: false, schedules: [] },
+	errors: { form: {}, event: {}, schedules: {} },
 };
 
 // Recursive composite update helper
@@ -72,7 +75,7 @@ const setNested = (obj, path, value) => {
 		[head]: setNested((obj || {})[head], tail, value),
 	};
 }
-// Reducer for updating composite (event, form, rRule) state
+// Reducer for updating composite (event, form, schedules) state
 const updateComposite = (state, action) => {
 	if (action.type === 'reset') {
 		return initialCompositeState;
@@ -106,6 +109,7 @@ const updateComposite = (state, action) => {
 			form: action.form ? { ...state.form, ...action.form } : state.form,
 			event: action.event ? { ...state.event, ...action.event } : state.event,
 			schedules: action.schedules ? action.schedules : state.schedules,
+			errors: action.errors ? action.errors : state.errors,
 			dirty: {
 				form: state.dirty.form || Boolean(action.form), // Dirty if already dirty, otherwise check for corresponding action
 				event: state.dirty.event || Boolean(action.event),
@@ -187,10 +191,10 @@ export const DayView = ({
 		setEvents, // Update in place
 		forms, // All user forms always 
 		setForms,
-		recurs, // All instances of rRules... for appearing on schedule
+		recurs, // All instances of schedules... for appearing on calendar
 		setRecurs, 
-		rRules, // All rRules without hard stop before range
-		setRRules, 
+		schedules, // All schedules without hard stop before range
+		setSchedules, 
 		selectedDate, // Date which range is based on
 		days, 
 		onDayClick, // Could change span or just selected date, always changes range and causes update
@@ -208,32 +212,36 @@ export const DayView = ({
 	});
 
 	// --- EVENT/FORM/RECUR HANDLERS --------------------------------------------------
-	const [ showForm, setShowForm ] = useState(null);
+	const [ showForm, setShowForm ] = useState({ _id: null });
 	const [ composite, reduceComposite ] = useReducer(updateComposite, initialCompositeState);
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
-	const recursMemo = useMemo(() => Object.fromEntries(recurs.map(r => [r._id, r])),[recurs]);
-	const rRulesMemo = useMemo(() => Object.fromEntries(rRules.map(rr => [rr._id, rr])),[rRules]);
+	const recursMemo = useMemo(() => [ ...recurs ],[recurs]);
+	const schedulesMemo = useMemo(() => [ ...schedules ],[schedules]);
 	
-	// Autofill form, event, rRule based on event or recur click
+	// Autofill form, event, schedules based on event or recur click
 	useEffect(() => {
 		// Autofill based on defaults
 		// console.log("Show Form:", showForm);
-		if (showForm !== null && showForm !== 'new') {
+
+		// NEEDS ACTION!!!!!!
+		// Set a start and endStamp on the 'new' (+) button click
+
+		if (showForm._id !== null && showForm._id !== 'new') {
 			// Autofill based on event
-			const newEvent = eventsMemo.find(e => showForm === e._id);
+			let newEvent = eventsMemo[showForm._id];
 			if (newEvent) {
 				// Should always be found
-				let newForm = formsMemo.find(f => newEvent.path === f.path);
+				let newForm = formsMemo[newEvent.formID];
 				if (!newForm) {
 					console.error(`Form not found from event path: ${newEvent.path}`);
 					newForm = makeEmptyForm();
 				}
 
-				// May not be found
-				let newSchedules = rRulesMemo.filter(rule => newEvent.path === rule.path);
+				// None to many may be found
+				let newSchedules = schedulesMemo.filter(sched => newEvent.path === sched.path);
 				if (!newSchedules) {
 					newSchedules = [makeEmptySchedule()];
 				}
@@ -244,25 +252,34 @@ export const DayView = ({
 					form: newForm,
 					schedules: newSchedules,
 				});
-				return
+
+				return;
 			}
 
-			// Autofill based on recurrence instance and associated rRule
-			const newRecur = recursMemo.find(r => showForm === r._id);
-			if (newRecur) {
+			// Autofill based on recurrence instance and associated schedule
+			const recurSched = schedulesMemo.find(sched => showForm._id === sched._id);
+			if (recurSched) {
 				// Should always be found 
-				let newSchedules = rRulesMemo.filter(rule => newRecur.rRuleID === rule._id);
+				let newSchedules = schedulesMemo.filter(rule => recurSched.path === rule.path);
 				if (!newSchedules) {
-					console.error(`rRule not found from recur path: ${newRecur.rRuleID}`);
+					console.error(`schedule not found from selected recur's schedule's path: ${recurSched.path}`);
 					newSchedules = [makeEmptySchedule()];
 				}
 
 				// Should always be found
-				let newForm = formsMemo.find(f => newSchedules[0].path === f.path);
+				let newForm = formsMemo[newSchedules[0].formID]; // Should all be the same formID
 				if (!newForm) {
-					console.error(`Form not found from rRule path: ${newSchedules[0].path}`);
+					console.error(`Form not found from schedule's formID: ${newSchedules[0].formID}`);
 					newForm = makeEmptyForm();
 				}
+
+				newEvent = { 
+					...makeEmptyEvent(),
+					scheduleID: showForm._id,
+					scheduleStart: showForm.startStamp,
+					startStamp: showForm.startStamp,
+					endStamp: showForm.endStamp,
+				};
 
 				reduceComposite({
 					type: 'update',
@@ -277,7 +294,7 @@ export const DayView = ({
 			console.error("Selection doesn't match recur or event");
 			reduceComposite({ type: 'reset' });
 		}
-	}, [showForm, eventsMemo, formsMemo, rRulesMemo, recursMemo]);
+	}, [showForm, eventsMemo, formsMemo, schedulesMemo, recursMemo]);
 
 	// --- DATE HANDLERS -------------------------------------------------------
 	const month = selectedDate.toLocaleString('default', { month: 'long' });
@@ -322,86 +339,28 @@ export const DayView = ({
 		});
 	};
 
-	// --- VALIDATION -----------------------------------------------------------
-	const validateForm = (form) => {
-		if (!TypeCheck(form.path, ['string'])) {
-			console.error('Invalid form.path:', form.path)
-			return false
-		}
-		if (!TypeCheck(form.info, ['array'])) {
-			console.error('Invalid form.info:', form.info)
-			return false
-		}
-		if (!TypeCheck(form.includeStart, ['boolean'])) {
-			console.error('Invalid form.includeStart:', form.includeStart)
-			return false
-		}
-		return true
-	}
-
-	const validateEvent = (event) => {
-		if (!TypeCheck(event.formID, ['string'])) {
-			console.error('Invalid event.formID:', event.formID)
-			return false
-		}
-		if (!TypeCheck(event.recurID, ['string'])) {
-			console.error('Invalid event.recurID:', event.recurID)
-			return false
-		}
-		if (!TypeCheck(event.startStamp, ['string'])) {
-			console.error('Invalid event.startStamp:', event.startStamp)
-			return false
-		}
-		if (!TypeCheck(event.endStamp, ['string'])) {
-			console.error('Invalid event.endStamp:', event.endStamp)
-			return false
-		}
-		return true
-	}
-
-	const validateRRule = (recur) => {
-		if (!TypeCheck(recur.period, ['string'])) {
-			console.error('Invalid recur.period:', recur.period)
-			return false
-		}
-		if (!TypeCheck(recur.interval, ['number']) || recur.interval < 1) {
-			console.error('Invalid recur.interval:', recur.interval)
-			return false
-		}
-		if (!TypeCheck(recur.endStamp, ['string'])) {
-			console.error('Invalid recur.endStamp:', recur.endStamp)
-			return false
-		}
-		if (!TypeCheck(recur.tz, ['string'])) {
-			console.error('Invalid recur.tz:', recur.tz)
-			return false
-		}
-		return true
-	}
-
 	// Update the event related stores (directlyPassedRecur is check mark click no additional detail)
-	const upsertComposite = async () => {
+	const upsertComposite = async (specDirty) => {
 		try {
 			
 			console.log(composite);
-			const { event, form, schedules, dirty } = composite;
+			const { event, form, schedules } = composite;
 
 			let formToSave = { ...form };
 			let eventToSave = { ...event };
 			let schedulesToSave = [ ...schedules ];
 
+			console.log("On save: ")
+			console.log("Sched: ", schedulesToSave);
+			console.log("Form: ", formToSave);
+			console.log("Event: ", eventToSave);
+			console.log("Dirty: ", specDirty);
+
 			if (!form.includeStart) {
 				eventToSave.startStamp = event.endStamp; // If no start, set to end for convenience
 			}
 			
-			/*
-			if ( !validateForm(formToSave) || !validateEvent(eventToSave) || !validateRRule(rRuleToSave) ) { 
-				console.error(`Invalid save attempt... \nForm: ${validateForm(formToSave)}\nEvent:${validateEvent(eventToSave)}\nrRule:${validateRRule(rRuleToSave)}`);
-				return ;
-			}
-			*/
-
-			const saved = await save('events', 'POST', { form: formToSave, event: eventToSave, schedules: schedulesToSave, dirty })
+			const saved = await save('events', 'POST', { form: formToSave, event: eventToSave, schedules: schedulesToSave, dirty: specDirty })
 
 			if (saved) {
 				console.log("Saved returns:", saved);
@@ -474,36 +433,33 @@ export const DayView = ({
 						</div>
 						<div className={idx === 2 ? 'dayContentLarge' : 'dayContentSmall'}>
 							{[...events, ...recurs]
+								.filter(item => (
+									timeDiff(normDate(item.startStamp), date).days === 0
+									|| timeDiff(normDate(item.endStamp), date).days === 0
+								))
 								.sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp))
-								.map(evt => (
-									<div className="formRow" key={evt.id}>
-										{/*
-										<button className="submitButton" onClick={() => {
-											setForm(evt);
-											setShowForm(prev => {
-												const show = [...prev];
-												show[idx] = !show[idx]
-												return show;
-											});
-										}}>{evt.title}</button>
+								.map(item => (
+									<div className="formRow" key={item.id}>
+										<button className="relButton" onClick={() => {
+											setShowForm({ _id: item._id, startStamp: item.startStamp, endStamp: item.endStamp });
+										}}>{item.path}</button>
 										<p className="sep">
-											{new Date(evt.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
+											{new Date(item.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
 											-
-											{new Date(evt.endStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
+											{new Date(item.endStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
 										</p>
-										*/}
 									</div>
 								))
 							}
 							<button className="createButton" onClick={() => {
 								reduceComposite({ type: 'reset' });
-								setShowForm('new');
+								setShowForm({ _id: 'new' });
 								setFormDate(date);
 							}}>+</button>
 						</div>
 					</div>
 				))}
-				{showForm &&
+				{showForm._id &&
 					<Floater>
 						<EventForm
 							composite={composite} reduceComposite={reduceComposite}
@@ -514,13 +470,6 @@ export const DayView = ({
 				}
 			</div>
 		</>
-	);
-};
-
-const Floater = ({ children }) => {
-	return createPortal(
-		<div className="portal">{children}</div>,
-		document.body
 	);
 };
 
@@ -560,7 +509,7 @@ const monthOptions = [
 
 // #endregion
 
-const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, reduceComposite }) => {
+const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, errorInfo, reduceComposite }) => {
 	const [rawParts, setRawParts] = useState(editFriendlyDateTime(null));
 	const [format, setFormat] = useState({ order: [] });
 
@@ -588,17 +537,20 @@ const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, 
 		}
 	}, [type]);
 
-
 	const commitPart = (unit, newVal) => {
-		const upDate = calcFriendlyDateTime(unit, date, { ...rawParts, [unit]: newVal});
-		if (schedIdx === null && objKey === 'event') {
-			// 'event' case
-			reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
-		} else if (objKey === 'schedules') {
-			// 'schedules' case
-			reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
-		} else {
-			console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
+		try {
+			const upDate = calcFriendlyDateTime(unit, date, { ...rawParts, [unit]: newVal});
+			if (schedIdx === null && objKey === 'event') {
+				// 'event' case
+				reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
+			} else if (objKey === 'schedules') {
+				// 'schedules' case
+				reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
+			} else {
+				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
+			}
+		} catch(err) {
+			console.exception(`Erred committing ${newVal} to ${unit} in InteractiveTime`);
 		}
 	}
 
@@ -621,7 +573,7 @@ const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, 
 	}
 
 	return (
-		<div className="formRow" id="endDateTime">
+		<div id={fieldKey} className={errorInfo?.err ? "formRow erred" : "formRow"}>
 			<p className="sep">{text}</p>
 			{format.order.map((unit) => (
 				<React.Fragment key={`${fieldKey}_${unit}`}>
@@ -637,35 +589,37 @@ const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, 
 								options={createOptions(unit)}
 								value={createDefaults(unit)}
 								setter={(newVal) => commitPart(unit, newVal)}
-								allowType={(unit !== 'weekday' && unit !== 'month')}
+								allowType={!(['weekday', 'month'].includes(unit))}
+								numericOnly={['day', 'hour', 'minute'].includes(unit)}
 								/>
 						}
 					</div>
 					<p className="sep">{format[unit]}</p>
 				</React.Fragment>
 			))}
+			<ErrorInfoButton {...errorInfo} />
 		</div>
 	)
 }
 
 const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite }) => {
 
-	const { form, event, schedules, dirty } = composite;
-	const [editRRule, setEditRRule] = useState(null);
-	const schedule = editRRule !== null ? schedules[editRRule] : null;
+	const { form, event, schedules, dirty, errors } = composite;
+	const [editSchedule, setEditSchedule] = useState(null);
+	const schedule = editSchedule !== null ? schedules[editSchedule] : null;
 	const [edit, setEdit] = useState(false);
 
 	// Holds last state for easy reversion
 	const ogState = useRef({
 		form: { ...form, info: [...form.info] },
-		schedule: editRRule !== null ? { ...schedules[editRRule] } : {},
+		schedule: editSchedule !== null ? { ...schedules[editSchedule] } : {},
 	});
-
 
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
 	/** REVERT OR COMMITS TO SCHED OR FORM */
 	//#region
@@ -676,6 +630,11 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 	};
 
 	const handleCommitForm = () => {
+		const valid = validateForm(form);
+		reduceComposite({ type: 'update', errors: { ...errors, form: valid.validity } });
+		if (!valid.isValid) {
+			return;
+		}
 		ogState.current.form = {
 			...form,
 			info: [...form.info]
@@ -691,7 +650,7 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 			if (prevEvent) {
 				return { ...f, content: prevEvent.content };
 			} else {
-				const emptyContent = f.type === 'input' ? [''] : null;
+				const emptyContent = (f.type === 'input' || f.type === 'text') ? [''] : null;
 				return { ...f, content: emptyContent }
 			}
 		});
@@ -712,26 +671,44 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 			console.log("Reverting existing og schedule.")
 			reduceComposite({ 
 				type: 'drill',
-				path: ['schedules', editRRule], 
+				path: ['schedules', editSchedule], 
 				value: old,
 			});
 		} else {
 			console.log("Reverting absent og schedule.")
-			reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== editRRule) });
+			reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== editSchedule) });
 		}
-    setEditRRule(null);
+    setEditSchedule(null);
   };
 
 	const handleCommitSchedule = () => {
 		// Push endStamp a week forward if weekly and before start stamp (hack to allow weekly event sat -> sun etc)
+		const valid = validateSchedule(schedule);
+		reduceComposite({ type: 'update', errors: { ...errors, schedules: valid.validity } });
+		if (!valid.isValid) {
+			return;
+		}
 		const pushEndByWeek = schedule.period === 'weekly' && schedule.endStamp < schedule.startStamp;
 		const newSchedule = {
 			...schedule,
 			endStamp: pushEndByWeek ? addTime(schedule.endStamp, { days : 7 }) : schedule.endStamp,
 		};
-		reduceComposite({ type: 'drill', path: ['schedules', editRRule], value: newSchedule });
+		reduceComposite({ type: 'drill', path: ['schedules', editSchedule], value: newSchedule });
 		ogState.current.schedule = newSchedule;
-		setEditRRule(null);
+		setEditSchedule(null);
+	};
+
+	// Allows saving JUST the form or JUST the schedules and form (form save always necessary & schedule save inherently avoidable)
+	const handleUpsert = (saveEvent) => {
+		const outDirty = { ...dirty, event: (saveEvent && dirty.event) };
+		if (saveEvent) {
+			const valid = validateEvent(event);
+			reduceComposite({ type: 'update', errors: { ...errors, event: valid.validity } });
+			if (!valid.isValid) { return }
+		}
+
+		upsertComposite(outDirty);
+
 	};
 
 	//#endregion
@@ -749,7 +726,7 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 
 	const addField = (type) => {
 		const newField = type === 'mc'
-			? { type, label: '', options: [null] }
+			? { type, label: '', options: [''] }
 			: type === 'tf'
 			? { type, label: '' }
 			: type === 'input'
@@ -790,7 +767,7 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 		reduceComposite({
 			type: 'drill',
 			path: ['form', 'info', idx, 'options'],
-			value: [...optionsCopy, null]
+			value: [...optionsCopy, '']
 		});
 	};
 
@@ -846,18 +823,22 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 		<div className="form wButtonRow">
 
 			{/** Path */}
-			<div className="formRow">	
-				<p className="sep">Path</p>
-				<input
-					className="formCell"
-					placeholder="work/projects/..."
-					value={form.path || ''}
-					onChange={e => {
-						changeField(['form', 'path'], e.target.value);
-						changeField(['event', 'path'], e.target.value);
-						changeField(['schedules', 'path'], e.target.value);
-					}}
-				/>
+			<div className="formRow">
+				<div id="path" className={errors?.event?.path?.err ? "formCell erred" : "formCell"}>	
+					<p className="sep">Path</p>
+					<input
+						placeholder="work/projects/..."
+						value={form.path || ''}
+						onChange={e => {
+							changeField(['form', 'path'], e.target.value);	
+							changeField(['event', 'path'], e.target.value);
+							for(let ctr = 0; ctr < schedules.length; ctr++) {
+								changeField(['schedules', ctr, 'path'], e.target.value);
+							}
+						}}
+					/>
+					<ErrorInfoButton errID={"path"} err={errors?.event?.path?.err} />
+				</div>
 			</div>
 
 			{/** SCHEDULE */}
@@ -868,17 +849,18 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 					{/** PERIOD */}
 					<div className="formRow">
 						<p className="sep">Period</p>
-						<div className="formCell">
-						<DropSelect
-							options={periodOptions}
-							value={periodOptions.find((option) => schedule.period === option.value)}
-							setter={(newVal) => reduceComposite({
-								type: 'drill',
-								path: ['schedules', editRRule, 'period'],
-								value: newVal
-							})}
+						<div id="period" className="formCell">
+							<DropSelect
+								options={periodOptions}
+								value={periodOptions.find((option) => schedule.period === option.value)}
+								setter={(newVal) => reduceComposite({
+									type: 'drill',
+									path: ['schedules', editSchedule, 'period'],
+									value: newVal
+								})}
+								errorInfo={{ errID: "period", err: errors?.schedules?.period?.err }}
 							/>
-							</div>
+						</div>
 					</div>
 					
 					{/** INTERVAL */}
@@ -886,16 +868,17 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 						{schedule.period && schedule.period !== 'single' &&
 							<>
 								<p className="sep">Every</p>
-								<div className="formCell">
+								<div id="interval" className={errors?.schedules?.interval?.err ? "formCell errCell": "formCell"}>
 									<InfDropSelect
 										min={1}
 										value={{ display: String(schedule.interval), value: schedule.interval }} // Just so I can use the same View for both DropSelects
 										setter={(newVal) => reduceComposite({
 											type: 'drill',
-											path: ['schedules', editRRule, 'interval'],
+											path: ['schedules', editSchedule, 'interval'],
 											value: Number(newVal)
 										})}
 										allowType={true}
+										errorInfo={{ errID: "interval", err: errors?.schedules?.interval?.err }}
 									/>
 								</div>
 								<p className="sep">
@@ -914,19 +897,21 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 								text={'Start'}
 								type={schedule.period}
 								objKey={'schedules'}
-								schedIdx={editRRule}
+								schedIdx={editSchedule}
 								fieldKey={'startStamp'}
 								date={new Date(schedule.startStamp)}
 								reduceComposite={reduceComposite}
+								errorInfo={{ errID: "startStamp", err: errors?.schedules?.startStamp?.err}}
 							/>
 							<InteractiveTime
 								text={'End'}
 								type={schedule.period}
 								objKey={'schedules'}
-								schedIdx={editRRule}
+								schedIdx={editSchedule}
 								fieldKey={'endStamp'}
 								date={new Date(schedule.endStamp)}
 								reduceComposite={reduceComposite}
+								errorInfo={{ errID: "endStamp", err: errors?.schedules?.endStamp?.err}}
 							/>
 						</div>
 					}
@@ -938,18 +923,20 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 							<InteractiveTime
 								text={'Start'}
 								objKey={'schedules'}
-								schedIdx={editRRule}
+								schedIdx={editSchedule}
 								fieldKey={'startRangeStamp'}
 								date={new Date(schedule.startRangeStamp)}
 								reduceComposite={reduceComposite}
+								errorInfo={{ errID: "startRangeStamp", err: errors?.schedules?.startRangeStamp?.err}}
 							/>				
 							<InteractiveTime
 								text={'End'}
 								objKey={'schedules'}
-								schedIdx={editRRule}
+								schedIdx={editSchedule}
 								fieldKey={'endRangeStamp'}
 								date={new Date(schedule.endRangeStamp)}
 								reduceComposite={reduceComposite}
+								errorInfo={{ errID: "endRangeStamp", err: errors?.schedules?.endRangeStamp?.err}}
 							/>
 						</div>
 					}
@@ -964,7 +951,7 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 								<div className="form wButtonRow">
 									<div className="submitRow right">
 										<button className="submitButton" onClick={() => {
-											setEditRRule(idx);
+											setEditSchedule(idx);
 										}}>
 											Edit
 										</button>
@@ -1020,19 +1007,23 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 			{edit && form.info.map((f, idx) => (
 					<React.Fragment key={idx}>
 						<div className="formRow">
-							<input
-								className="formCell"
-								placeholder="Label..."
-								value={f.label}
-								onChange={e => changeField(['form', 'info', idx, 'label'], e.target.value)}
-							/>
+							<div id={`${idx}-label`} className={errors?.form?.info?.[idx]?.label?.err ? "formCell erred" : "formCell"}>
+								<input
+									placeholder="Label..."
+									value={f.label}
+									onChange={e => changeField(['form', 'info', idx, 'label'], e.target.value)}
+								/>
+								<ErrorInfoButton errID={`${idx}-label`} err={errors?.form?.info?.[idx]?.label?.err} />
+							</div>
 							{f.type === 'input' ?
+								<div id={`${idx}-placeholder`} className={errors?.form?.info?.[idx]?.placeholder?.err ? "formCell erred" : "formCell"}>
 									<input 
-										className="formCell"
 										placeholder="Placeholder..."
 										value={f.placeholder}
 										onChange={e => changeField(['form', 'info', idx, 'placeholder'], e.target.value)}
 									/>
+									<ErrorInfoButton errID={`${idx}-placeholder`} err={errors?.form?.info?.[idx]?.placeholder?.err} />
+								</div>
 								: f.type === 'tf' ?
 									<>
 										<button className="relButton">True</button>
@@ -1045,23 +1036,27 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 						</div>
 						{f.type === 'text' ?
 							<div className="formRow">
-								<textarea 
-									className="formCell"
-									placeholder="Placeholder..."
-									value={f.placeholder}
-									onChange={e => changeField(['form', 'info', idx, 'placeholder'], e.target.value)}
-								/>
+								<div id={`${idx}-placeholder`} className={errors?.form?.info?.[idx]?.placeholder?.err ? "formCell erred" : "formCell"}>
+									<textarea 
+										placeholder="Placeholder..."
+										value={f.placeholder}
+										onChange={e => changeField(['form', 'info', idx, 'placeholder'], e.target.value)}
+									/>
+									<ErrorInfoButton errID={`${idx}-placeholder`} err={errors?.form?.info?.[idx]?.placeholder?.err} />
+								</div>
 							</div>
 							: f.type === 'mc' ?
 								<div className="formRow">
 									{f.options.map((opt, optIdx) => (
 										<React.Fragment key={optIdx}>
-											<input
-												className="formCell"
-												placeholder={`Option ${optIdx + 1}...`}
-												value={opt}
-												onChange={e => changeField(['form', 'info', idx, 'options', optIdx], e.target.value)}
-											/>
+											<div id={`${idx}-options-${optIdx}`} className={errors?.form?.info?.[idx]?.options?.[optIdx]?.err ? "formCell erred" : "formCell"}>
+												<input
+													placeholder={`Option ${optIdx + 1}...`}
+													value={opt}
+													onChange={e => changeField(['form', 'info', idx, 'options', optIdx], e.target.value)}
+												/>
+												<ErrorInfoButton errID={`${idx}-options-${optIdx}`} err={errors?.form?.info?.[idx]?.options?.[optIdx]?.err} />
+											</div>
 											<button className="relButton" onClick={() => removeOption(idx, optIdx)}>×</button>
 										</React.Fragment>
 									))}
@@ -1080,20 +1075,20 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 						{f.type === 'input' ?
 								<>
 									{f.content.map((inp, inpIdx) => (
-										<React.Fragment key={inpIdx}>
+										<div key={inpIdx} id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "formCell erred" : "formCell"}>
 											<input key={inpIdx}
-												className="formCell"
 												placeholder={f.placeholder + '...'}
 												value={inp}
 												onChange={e => changeField(['event', 'info', idx, 'content', inpIdx], e.target.value)}
 											/>
 											<button className="relButton" onClick={() => removeInput(idx, inpIdx)}>×</button>
-										</React.Fragment>
+											<ErrorInfoButton errID={`${idx}-content-${inpIdx}`} err={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err} />
+										</div>
 									))}
 									<button className="relButton" onClick={() => addInput(idx)}>+</button>
 								</>
 							: f.type === 'tf' ?
-								<>
+								<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "formCell erred" : "formCell"}>
 									<button className={`relButton ${f.content === true ? 'selected' : ''}`} 
 										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === true ? null : true)}>
 										True
@@ -1102,25 +1097,33 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === false ? null : false)}>
 										False
 									</button>
-								</>
+									<ErrorInfoButton errID={`${idx}-content`} err={errors?.event?.info?.[idx]?.content?.err} />
+								</div>
 							: null
 						}
 					</div>
 					{f.type === 'text' ?
-							<textarea 
-								className="formRow" 
-								placeholder={f.placeholder + '...'}
-								value={f.content}
-								onChange={e => changeField(['event', 'info', idx, 'content'], e.target.value)}
-								/>
+						<div className="formRow">
+							<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "formCell erred" : "formCell"}>
+								<textarea 
+									placeholder={f.placeholder + '...'}
+									value={f.content}
+									onChange={e => changeField(['event', 'info', idx, 'content'], e.target.value)}
+									/>
+								<ErrorInfoButton errID={`${idx}-content`} err={errors?.event?.info?.[idx]?.content[0]?.err} />
+							</div>
+						</div>
 						: f.type === 'mc' ?
 							<div className="formRow">
 								{f.options.map((opt, optIdx) => (
-									<button key={optIdx}
-										className={`relButton ${f.content === opt ? 'selected' : ''}`}
-										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === opt ? null : opt)}>
-										{opt}
-									</button>
+									<div key={optIdx} id={`${idx}-content-${optIdx}`} className={errors?.event?.info?.[idx]?.options?.[optIdx]?.err ? "formCell erred" : "formCell"}>
+										<button
+											className={`relButton ${f.content === opt ? 'selected' : ''}`}
+											onClick={() => changeField(['event', 'info', idx, 'content'], f.content === opt ? null : opt)}>
+											{opt}
+										</button>
+										<ErrorInfoButton errID={`${idx}-content-${optIdx}`} err={errors?.event?.info?.[idx]?.options?.[optIdx]?.err} />
+									</div>
 								))}
 							</div>
 						: null
@@ -1138,6 +1141,7 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 					fieldKey={'startStamp'}
 					date={new Date(event.startStamp)}
 					reduceComposite={reduceComposite}
+					errorInfo={{ errID: "startStamp", err: errors?.event?.startStamp?.err }}
 					/>
 			}
 			<InteractiveTime
@@ -1147,47 +1151,36 @@ const EventForm = ({ composite, reduceComposite, setShowForm, upsertComposite })
 				fieldKey={'endStamp'}
 				date={new Date(event.endStamp)}
 				reduceComposite={reduceComposite}
+				errorInfo={{ errID: "endStamp", err: errors?.event?.endStamp?.err }}
 				/>
 
 			{/** ACTIONS */}
 			<div className="submitRow right">
 				{schedule !== null ?
 					<>
-						<button className="submitButton" onClick={() => {
-							handleRevertSchedule();
-							setEditRRule(null);
-						}}>Revert Schedule</button>
-						<button className="submitButton" onClick={() => {
-							handleCommitSchedule();
-							setEditRRule(null);
-						}}>Commit Schedule</button>
+						<button className="submitButton" onClick={() => handleRevertSchedule()}>Revert Schedule</button>
+						<button className="submitButton" onClick={() => handleCommitSchedule()}>Commit Schedule</button>
 					</>
 					:
 					<button 
 						className="submitButton" 
 						onClick={() => {
-							setEditRRule(schedules.length);
-							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: makeEmptySchedule() });
+							setEditSchedule(schedules.length);
+							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: makeEmptySchedule(event.path) });
 						}}>
 						New Schedule
 					</button>
 				}
 				{edit ?
 					<>
-						<button className="submitButton" onClick={() => {
-							handleRevertForm();
-							setEdit(false);
-						}}>Revert Form</button>
-						<button className="submitButton" onClick={() => {
-							handleCommitForm();
-							setEdit(false);
-						}}>Commit Form</button>
+						<button className="submitButton" onClick={() => handleRevertForm()}>Revert Form</button>
+						<button className="submitButton" onClick={() => handleCommitForm()}>Commit Form</button>
 					</>
 					:
 					<button className="submitButton" onClick={() => setEdit(true)}>Edit Form</button>
 				}
-				<button className="submitButton" onClick={() => upsertComposite()}>Save</button>
-				<button className="submitButton add" onClick={() => setShowForm(null)}>-</button>
+				<button className="submitButton" onClick={() => handleUpsert(true)}>Save</button>
+				<button className="submitButton add" onClick={() => setShowForm({ _id: null })}>-</button>
 			</div>
 		
 		</div>

@@ -1,0 +1,1 @@
+export const toCamel = (prop) => prop.replace(/-([a-z])/g, (_, char) => char.toUpperCase());

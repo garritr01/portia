@@ -8,7 +8,7 @@ export const KeyNavProvider = ({ children }) => {
 	const [current, setCurrent] = useState(null);
 	const orderRef = useRef([]);
 
-	//useEffect(() => console.log("Current Nav: ", current), [current]);
+	useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	const rebuildNavOrder = useCallback(() => {
 		const rows = document.body.querySelectorAll(".form .formRow");
@@ -17,41 +17,60 @@ export const KeyNavProvider = ({ children }) => {
 		orderRef.current = navOrder2d;
 	}, []);
 
+	// Update current then focus & blur if applicable
+	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
+
+		const cell = newElm?.closest?.(".formCell");
+		console.log('cell', cell);
+
+		// In case I ever realize I DO NEED the force blur
+		//if (current instanceof HTMLElement) {
+		//	// Blur any previously focused input or textarea
+		//	const prevChildInput = current.querySelector("input, textarea");
+		//	const newChildInput = cell.querySelector("input, textarea");
+		//	console.log('prev', prevChildInput);
+		//	console.log('new', newChildInput);
+		//	if (prevChildInput instanceof HTMLElement && newChildInput instanceof HTMLElement) { prevChildInput.blur() }
+		//}
+
+		// Focus any new input or textarea, or maintain focus on last
+		if (!(cell instanceof HTMLElement)) { return }
+
+		const childInput = cell.querySelector("input, textarea");
+		if (focusChildInput && childInput instanceof HTMLElement) { console.log("Focusing new"); childInput.focus() }
+		setCurrent(cell);
+
+	}, [setCurrent/*, current*/]);
+
+	// Set current to first element in navOrder when 
+	const currentFallback = useCallback(() => {
+		if (!current || !document.body.contains(current)) {
+			const flat = orderRef.current.flat();
+			if (flat[0] instanceof HTMLElement && document.body.contains(flat[0])) {
+				focusBehavior(flat[0]);
+			}
+		}
+	}, [current, focusBehavior]);
+
 	// If certain classes added or removed, rebuild the nav order
 	const handleMutation = useCallback((mutations) => {
+
 		const navUpdates = mutations.some((m) => (
 			[ ...m.addedNodes, ...m.removedNodes ].some((n) => (
 				n instanceof Element && (
 					n.matches('.form') ||
 					n.matches('.formRow') ||
 					n.matches('.formCell')
-
 				)
 			))
 		));
 
-		if (navUpdates) { rebuildNavOrder() }
-	}, [rebuildNavOrder]);
-
-	// Update current then focus & blur if applicable
-	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
-
-		if (current instanceof HTMLElement) {
-			// Blur any previously focused input
-			const prevChildInput = current.querySelector("input");
-			if (prevChildInput instanceof HTMLElement) { prevChildInput.blur() }
+		if (navUpdates) {
+			rebuildNavOrder();
+			currentFallback();
 		}
 
-		if (newElm instanceof HTMLElement) {
-			// Focus any new input
-			const childInput = newElm.querySelector("input");
-			if (focusChildInput && childInput instanceof HTMLElement) { childInput.focus() }
-			setCurrent(newElm);
-		} else { 
-			setCurrent(null);
-		}
-
-	}, [current, setCurrent]);
+	}, [rebuildNavOrder, currentFallback]);
 
 	// Go to next element in orderRef (starts at start)
 	const goNext = useCallback((e) => {
@@ -71,15 +90,15 @@ export const KeyNavProvider = ({ children }) => {
 			if (rIdx < 0 || cIdx < 0 || (cIdx >= navOrder[rIdx].length - 1 && rIdx >= navOrder.length - 1)) { 
 				// Go to beginning
 				next = navOrder[0][0];
-				console.log(`goNext: (${rIdx}, ${cIdx}) -> (0,0)`);
+				//console.log(`goNext: (${rIdx}, ${cIdx}) -> (0,0)`);
 			} else if (rIdx < navOrder.length - 1 && cIdx >= navOrder[rIdx].length - 1) { 
 				// Go to beginning of next row
 				next = navOrder[rIdx + 1][0];
-				console.log(`goNext: (${rIdx}, ${cIdx}) -> (${rIdx + 1},0)`);
+				//console.log(`goNext: (${rIdx}, ${cIdx}) -> (${rIdx + 1},0)`);
 			} else { 
 				// Go to next cell idx
 				next = navOrder[rIdx][cIdx + 1];
-				console.log(`goNext: (${rIdx}, ${cIdx}) -> (${rIdx},${cIdx + 1})`);
+				//console.log(`goNext: (${rIdx}, ${cIdx}) -> (${rIdx},${cIdx + 1})`);
 			}
 		}
 
@@ -197,12 +216,15 @@ export const KeyNavProvider = ({ children }) => {
 		// Don't cancel out goNext on droption click
 		const droption = e.target.closest?.('.droption');
 		if (droption instanceof HTMLElement) { return }
+		focusBehavior(e.target);
+	}, [focusBehavior]);
 
-		// Set current to .formCell if it or descendants were clicked
-		const cell = e.target.closest?.(".formCell");
-		if (cell instanceof HTMLElement) { focusBehavior(cell) }
-		else { focusBehavior(null) }
-	}, [setCurrent]);
+	// conditional blur prevention
+	const preventBlur = useCallback((e) => {
+		if (current instanceof HTMLElement && current.querySelector('input, textarea')) {
+			e.preventDefault();
+		}
+	}, [current]);
 
 	const handleTouchStart = useCallback((e) => {
 		// Set current to .formCell if it or descendants were clicked
@@ -211,7 +233,7 @@ export const KeyNavProvider = ({ children }) => {
 		else { focusBehavior(null) }
 
 		document.addEventListener("touchend", () => focusBehavior(null), { once: true });
-	}, [setCurrent]);
+	}, [focusBehavior]);
 
 	// Delegate to nav handlers based on key pressed
 	const handleKeyDown = useCallback((e) => {
@@ -246,6 +268,7 @@ export const KeyNavProvider = ({ children }) => {
 			document.addEventListener("touchstart", handleTouchStart);
 		} else {
 			document.addEventListener("click", handleClick);
+			document.addEventListener("mousedown", preventBlur);
 		}
 		document.addEventListener("keydown", handleKeyDown);
 
@@ -254,10 +277,11 @@ export const KeyNavProvider = ({ children }) => {
 				document.removeEventListener("touchstart", handleTouchStart);
 			} else {
 				document.removeEventListener("click", handleClick);
+				document.removeEventListener("mousedown", preventBlur);
 			}
 			document.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [handleClick, handleKeyDown]);
+	}, [smallScreen, preventBlur, handleTouchStart, handleClick, handleKeyDown]);
 
 	return (
 		<keyNavContext.Provider value={{ currentNav: current, goNext, goLast, focusBehavior }}>

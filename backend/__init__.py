@@ -77,10 +77,12 @@ def createApp():
 	from backend.routes.checklist import checklistBP
 	from backend.routes.forms import formsBP
 	from backend.routes.events import eventsBP
+	from backend.routes.schedules import schedulesBP
 	
 	app.register_blueprint(testBP)
 	app.register_blueprint(checklistBP)
 	app.register_blueprint(formsBP)
 	app.register_blueprint(eventsBP)
+	app.register_blueprint(schedulesBP)
 
 	return app

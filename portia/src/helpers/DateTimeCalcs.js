@@ -1,3 +1,4 @@
+import { refEqual } from 'firebase/firestore';
 import { RRule, rrulestr } from 'rrule';
 
 /* Sort checklist on load */
@@ -34,7 +35,7 @@ export const addTime = (jsDate, addend) => {
 		date.setHours(date.getHours() + addend.hours);
 	}
 	if (addend.seconds) {
-		date.setSeconds(date.getSeconds() + addend.seconds);
+		date.setMinutes(date.getMinutes() + addend.minutes);
 	}
 
 	return date;
@@ -271,7 +272,7 @@ export const rRuleStrToRRule = (rRuleStr) => {
  * @param {*} rRule 
  * @returns 
  */
-export const rRuleToObject = (rRule) => {
+export const rRuleToObj = (rRule) => {
 	console.log("RRule in: ", rRule);
 	const op = rRule.origOptions || rRule.options
 
@@ -296,25 +297,21 @@ export const rRuleToObject = (rRule) => {
  * @param {*} obj 
  * @returns 
  */
-export const objectToRRuleString = (obj) => {
-	console.log("Obj in", obj);
-	const op = {
+export const objToRRule = (obj) => {
+	const options = {
 		freq: period2rRule.find(([p, rP]) => p === obj.period)[1] || RRule.DAILY,
 		interval: obj.interval || 1,
+		dtstart: obj.startStamp
 	};
-	console.log("2")
-	if (obj.spec) {
-		if (obj.period === 'weekly') {
-			op.byweekday = obj.spec.map(i => weekday2rRule[i]);
-		} else if (obj.period === 'monthly') {
-			op.bymonthday = obj.spec;
-		} else if (obj.period === 'yearly') {
-			op.bymonth = obj.spec;
-		}
+	if (obj.period === 'weekly') {
+		options.byweekday = obj.spec.map(i => weekday2rRule[i]);
+	} else if (obj.period === 'monthly') {
+		options.bymonthday = obj.spec;
+	} else if (obj.period === 'yearly') {
+		options.bymonth = obj.spec;
 	}
-	console.log("RRule out: ", RRule.optionsToString(op));
 
-	return RRule.optionsToString(op)
+	return new RRule(options);
 }
 
 
@@ -326,7 +323,10 @@ export const objectToRRuleString = (obj) => {
  * @returns
  */
 export const getOccurances = (rRule, start, end) => {
-	return rRule.between(start, end, true);
+	const { dtstart, ...restOpts } = rRule.options;
+	const adjStart = rRule.before(start, true) || dtstart;
+	const adjRRule = new RRule({ ...restOpts, dtstart: adjStart });
+	return adjRRule.between(start, end, true);
 }
 
 // #endregion

@@ -5,7 +5,7 @@ import { Login, Logout, useUser } from './contexts/UserContext';
 import { useScreen } from './contexts/ScreenContext';
 import { DayView, MonthView, YearView } from './views/Calendar';
 import { useConnCheck, useAuthCheck } from './requests/Tests';
-import { useFetchEvents, useFetchForms, useFetchRRules, getAllRecurs } from './requests/Events';
+import { useFetchEvents, useFetchForms, useFetchSchedules, getAllRecurs } from './requests/Events';
 import { useFetchChecklist } from './requests/Checklist';
 import { returnDates, addTime } from './helpers/DateTimeCalcs';
 
@@ -30,11 +30,11 @@ export const App = () => {
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	// Array containing each date in view
 	const [days, setDays] = useState([]);
-	const startDate = days[0]?.toISOString() ?? null ;
-	const endDate = days[days.length - 1]?.toISOString() ?? null;
+	const startDate = days[0] ?? null ;
+	const endDate = days[days.length - 1] ?? null;
 	// Alter date range when necessary
 	useEffect(() => {
-		console.log('left exp:', leftExpanded, 'smallScreen:', smallScreen);
+		//console.log('left exp:', leftExpanded, 'smallScreen:', smallScreen);
 		setDays((smallScreen || leftExpanded) ? [selectedDate] : returnDates(selectedDate, 'day'));
 		if ((smallScreen || leftExpanded) && span !== 'day') { setSpan('day') }
 	}, [selectedDate, span, smallScreen, leftExpanded]);
@@ -42,11 +42,17 @@ export const App = () => {
 	// Fetch and update state of calendar objects
 	const fetchEvents = useFetchEvents(startDate, endDate);
 	const fetchForms = useFetchForms();
-	const fetchRRules = useFetchRRules(startDate, endDate);
+	const fetchSchedules = useFetchSchedules(startDate, endDate);
 	const [events, setEvents] = useState([]);
 	const [forms, setForms] = useState([]);
-	const [rRules, setRRules] = useState([]);
+	const [schedules, setSchedules] = useState([]);
 	const [recurs, setRecurs] = useState([]);
+	//useEffect(() => console.log("events: ", events), [events]);
+	//useEffect(() => console.log("forms: ", forms), [forms]);
+	//useEffect(() => console.log("schedules: ", schedules), [schedules]);
+	//useEffect(() => console.log("recurs: ", recurs), [recurs]);
+	//useEffect(() => console.log("days: ", days), [days]);
+	
 	useEffect(() => {
 		if (!user || !startDate || !endDate) { 
 			setEvents([]);
@@ -56,6 +62,7 @@ export const App = () => {
 			.then(setEvents)
 			.catch(() => setEvents([]));
 	}, [fetchEvents, startDate, endDate]);
+
 	useEffect(() => {
 		if (!user) {
 			setForms([]);
@@ -65,26 +72,28 @@ export const App = () => {
 			.then(setForms)
 			.catch(() => setForms([]));
 	}, [fetchForms]);
+
 	useEffect(() => {
 		if (!user) {
-			setRRules([]);
+			setSchedules([]);
 			return;
 		}
-		fetchForms()
-			.then(setRRules)
-			.catch(() => setRRules([]));
-	}, [fetchRRules]);
-	/*useEffect(() => {
+		fetchSchedules()
+			.then(setSchedules)
+			.catch(() => setSchedules([]));
+	}, [fetchSchedules]);
+
+	useEffect(() => {
 		if (!user) {
 			setRecurs([]);
 		}
-		const newRecurs = getAllRecurs(rRules, startDate, endDate);
+		const newRecurs = getAllRecurs(schedules, startDate, endDate);
 		if (newRecurs) {
 			setRecurs(newRecurs);
 		} else {
 			setRecurs([]);
 		}
-	}, [rRules, startDate, endDate]);*/
+	}, [schedules, startDate, endDate]);
 
 
 	// --- CHECKLIST HANDLERS --------------------------------------------------------------
@@ -153,8 +162,8 @@ export const App = () => {
 									setForms={setForms}
 									recurs={recurs}
 									setRecurs={setRecurs}
-									rRules={rRules}
-									setRRules={setRRules}
+									schedules={schedules}
+									setSchedules={setSchedules}
 									selectedDate={selectedDate}
 									days={days}
 									onDayClick={onCellClick}

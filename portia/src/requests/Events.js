@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useFetchWithAuth } from './General';
-import { rRuleStrToRRule, getOccurances } from '../helpers/DateTimeCalcs';
+import { rRuleStrToRRule, objToRRule, getOccurances, addTime, timeDiff } from '../helpers/DateTimeCalcs';
 
 export const useFetchEvents = (startDate, endDate) => {
 	const fetchWithAuth = useFetchWithAuth();
@@ -30,35 +30,38 @@ export const useFetchForms = () => {
 	}, [fetchWithAuth])
 }
 
-export const useFetchRRules = () => {
+export const useFetchSchedules = () => {
 	const fetchWithAuth = useFetchWithAuth()
 	return useCallback(async () => {
-		const res = await fetchWithAuth('rrules', '', {})
+		const res = await fetchWithAuth('schedules', '', {})
 		if (!res.ok) throw new Error(`Status ${res.status}`)
 		const data = await res.json()
-		return data.map(r => ({
-			...r,
-			startStamp: new Date(r.startStamp),
-			endStamp: new Date(r.endStamp),
-		}))
+		return data.map(s => ({
+			...s,
+			startStamp: new Date(s.startStamp),
+			endStamp: new Date(s.endStamp),
+			startRangeStamp: new Date(s.startRangeStamp),
+			endRangeStamp: new Date(s.endRangeStamp),
+		}));
 	}, [fetchWithAuth]);
 }
 
-export const getAllRecurs = (rRules, startDate, endDate) => {
+export const getAllRecurs = (schedules, startDate, endDate) => {
 	const allRecurs = [];
-	rRules.forEach(rRule => {
-		const ruleStart = new Date(rRule.startStamp);
-		const ruleEnd = new Date(rRule.endStamp);
+	schedules.forEach(sched => {
+		const ruleStart = new Date(sched.startStamp);
+		const ruleEnd = new Date(sched.endStamp);
 		const latestStart = startDate < ruleStart ? ruleStart : startDate;
 		const earliestEnd = (ruleEnd && endDate > ruleEnd) ? ruleEnd : endDate;
-		const rule = rRuleStrToRRule(rRule.rule);
+		const rule = objToRRule(sched);
 		const recurs = getOccurances(rule, latestStart, earliestEnd);
-
+		
 		recurs.forEach(recur => {
 			allRecurs.push({
-				_id: rule._id,
+				_id: sched._id,
+				path: sched.path,
 				startStamp: recur,
-				endStamp: new Date(recur.getTime() + rRule.duration),
+				endStamp: addTime(recur, timeDiff(ruleEnd, ruleStart))
 			});
 		});
 	});

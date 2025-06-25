@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { TypeCheck } from '../helpers/InputValidation';
 import { useSave } from '../requests/General';
 import { sortChecklist } from '../helpers/DateTimeCalcs';
 
@@ -47,36 +46,6 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 		});
 	}, [checklist]);
 
-	// Validate checklist item before attempting to store
-	const validateNewItem = async (item) => {
-		if (item.formID !== null && !TypeCheck(item.formID, ['string'])) {
-			console.error('Invalid formID:', item.formID);
-			return false;
-		}
-		if (item.participants !== null && !TypeCheck(item.participants, ['array'])) {
-			console.error('Invalid participants:', item.participants);
-			return false;
-		}
-		// Title must have content
-		if (!TypeCheck(item.title, ['string']) || !item.title) {
-			console.error('Invalid title:', item.title);
-			return false;
-		}
-		if (!TypeCheck(item.note, ['string'])) {
-			console.error('Invalid note:', item.note);
-			return false;
-		}
-		if (!TypeCheck(item.active, ['boolean'])) {
-			console.error('Invalid active:', item.active);
-			return false;
-		}
-		if (!TypeCheck(item.priority, ['number'])) {
-			console.error('Invalid priority:', item.active);
-			return false;
-		}
-		return true;
-	}
-
 	// Save or update checklist item
 	const updateChecklist = async (directlyPassedForm = null) => {
 		try {
@@ -94,9 +63,6 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 				priority: parseInt(source.priority, 10) ?? 0,
 				updatedAt: new Date().toISOString(),
 			}
-
-			const valid = await validateNewItem(formToSave)
-			if (!valid) { return }
 
 			if (source._id) {
 				// Update checklist item
