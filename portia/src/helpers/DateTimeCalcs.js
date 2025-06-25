@@ -1,6 +1,38 @@
 import { refEqual } from 'firebase/firestore';
 import { RRule, rrulestr } from 'rrule';
 
+export const periodOptions = [
+	{ display: 'No Schedule', value: null, altDisplay: "None but this shouldn't appear" },
+	{ display: 'No Repeat', value: 'single', altDisplay: "Just once" },
+	{ display: 'Daily', value: 'daily', altDisplay: "day" },
+	{ display: 'Weekly', value: 'weekly', altDisplay: "week" },
+	{ display: 'Monthly', value: 'monthly', altDisplay: "month" },
+	{ display: 'Annually', value: 'yearly', altDisplay: "year" },
+];
+export const weekdayOptions = [
+	{ display: "Sunday", value: 0 },
+	{ display: "Monday", value: 1 },
+	{ display: "Tuesday", value: 2 },
+	{ display: "Wednesday", value: 3 },
+	{ display: "Thursday", value: 4 },
+	{ display: "Friday", value: 5 },
+	{ display: "Saturday", value: 6 }
+];
+export const monthOptions = [
+	{ display: "Jan", value: 0 },
+	{ display: "Feb", value: 1 },
+	{ display: "Mar", value: 2 },
+	{ display: "Apr", value: 3 },
+	{ display: "May", value: 4 },
+	{ display: "June", value: 5 },
+	{ display: "July", value: 6 },
+	{ display: "Aug", value: 7 },
+	{ display: "Sept", value: 8 },
+	{ display: "Oct", value: 9 },
+	{ display: "Nov", value: 10 },
+	{ display: "Dec", value: 11 }
+];
+
 /* Sort checklist on load */
 export const sortChecklist = (checklist) => {
 	// Sort by priority or last update
