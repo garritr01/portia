@@ -1,3 +1,5 @@
+// requests/General.js
+
 import { useUser } from "../contexts/UserContext";
 import { useRoute } from "../contexts/RouteContext";
 import { useCallback } from "react";
@@ -49,7 +51,6 @@ export const useSave = () => {
 			const { error: msg } = await res.json().catch(() => ({}));
 			throw new Error(msg || `Server returned ${res.status}`);
 		}
-
 		return res.json();
 	};
 };

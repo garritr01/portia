@@ -8,7 +8,7 @@ export const KeyNavProvider = ({ children }) => {
 	const [current, setCurrent] = useState(null);
 	const orderRef = useRef([]);
 
-	useEffect(() => console.log("Current Nav: ", current), [current]);
+	//useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	const rebuildNavOrder = useCallback(() => {
 		const rows = document.body.querySelectorAll(".form .formRow");
@@ -21,7 +21,6 @@ export const KeyNavProvider = ({ children }) => {
 	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
 
 		const cell = newElm?.closest?.(".formCell");
-		console.log('cell', cell);
 
 		// In case I ever realize I DO NEED the force blur
 		//if (current instanceof HTMLElement) {
@@ -37,10 +36,18 @@ export const KeyNavProvider = ({ children }) => {
 		if (!(cell instanceof HTMLElement)) { return }
 
 		const childInput = cell.querySelector("input, textarea");
-		if (focusChildInput && childInput instanceof HTMLElement) { console.log("Focusing new"); childInput.focus() }
+
+		if (
+			cell !== current &&
+			focusChildInput && 
+			childInput instanceof HTMLElement
+		) { 
+			console.log("Focusing new"); 
+			childInput.focus();
+		}
 		setCurrent(cell);
 
-	}, [setCurrent/*, current*/]);
+	}, [setCurrent, current]);
 
 	// Set current to first element in navOrder when 
 	const currentFallback = useCallback(() => {

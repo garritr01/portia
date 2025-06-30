@@ -21,8 +21,8 @@ def listEvents(uID):
 @logRequests
 @handleFirebaseAuth
 def upsertEventComposite(uID):
-	ids = upsertComposite(request.get_json() or {}, uID)
-	return jsonify(ids), 200
+	objects = upsertComposite(request.get_json() or {}, uID)
+	return jsonify(objects), 200
 
 
 @eventsBP.route("/<docID>", methods=["DELETE"])

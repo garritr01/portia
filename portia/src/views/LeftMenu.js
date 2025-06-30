@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useSave } from '../requests/General';
-import { sortChecklist } from '../helpers/DateTimeCalcs';
+// views/LeftMenu.js
 
-export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallScreen }) => {
-	const save = useSave();
+import React, { useState, useEffect } from 'react';
+import { useChecklistDataHandler } from '../helpers/DataHandlers';
+import { ChecklistForm } from '../components/ChecklistForm';
+
+export const LeftMenu = ({ Logout, leftExpanded }) => {
+	const { checklist, upsertChecklist } = useChecklistDataHandler(); 
 	const [ showNotes, setShowNotes ] = useState({});
 	const [ showForm, setShowForm ] = useState(null);
 	const emptyForm = { title: '', note: '', priority: 0 };
@@ -46,49 +48,7 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 		});
 	}, [checklist]);
 
-	// Save or update checklist item
-	const updateChecklist = async (directlyPassedForm = null) => {
-		try {
-
-			// Use a directly passed in form or the form state (pass directly on clicking check mark)
-			const source = directlyPassedForm ?? form;
-
-			// reformat form from UI to storage structure
-			const formToSave = {
-				formID: source.formID ?? null,
-				participants: source.participants ?? [],
-				title: source.title.trim(),
-				note: source.note.trim(),
-				active: source.active ?? true,
-				priority: parseInt(source.priority, 10) ?? 0,
-				updatedAt: new Date().toISOString(),
-			}
-
-			if (source._id) {
-				// Update checklist item
-				const updated = await save(`checklist/${source._id}`, 'PUT', formToSave);
-				// Update changed item or drop if complete
-				setChecklist(prev => sortChecklist(
-					prev.map(item => (item._id === updated._id ? updated : item))
-					.filter(item => item.active)
-				));
-				setShowForm(null);
-				setForm(emptyForm);
-				console.log(`Updated ${updated.title}`);
-			} else {
-				// Create new checklist item
-				const saved = await save('checklist/new', 'POST', formToSave);
-				setChecklist(prev => sortChecklist([ ...prev, saved ]));
-				setShowForm(null);
-				setForm(emptyForm);
-				console.log(`Created ${saved.title}`);
-			}
-		} catch (err) {
-			console.error(`Error updating checklist: ${err}`);
-		}
-	}
-
-	/** Delete doc with _id */
+	/** Delete doc with _id 
 	const deleteChecklistItem = async (_id) => {
 		try {
 			await save(`checklist/${_id}`, 'DELETE', {});
@@ -98,7 +58,7 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 		} catch (err) {
 			console.error(`Error deleting checklist item ${_id}: ${err}`);
 		}
-	};
+	};*/
 	
 	return (
 		<div className={`leftMenu ${leftExpanded ? 'expand' : ''}`}>
@@ -109,11 +69,11 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 
 				{/** Create new checklist item form */}
 				{showForm === "new" && 
-					<ItemForm 
+					<ChecklistForm 
 						form={form} 
 						setForm={setForm} 
 						setShowForm={setShowForm}
-						updateChecklist={updateChecklist}
+						upsertChecklist={upsertChecklist}
 						/>
 				}
 
@@ -134,7 +94,7 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 							</p>
 
 							{item._id !== showForm && /** Complete task by setting active to false... hide if edit form is open */
-								<button className="relButton" onClick={() => updateChecklist({ ...item, active: false })}>✓</button>
+								<button className="relButton" onClick={() => upsertChecklist({ ...item, active: false })}>✓</button>
 							}
 
 						</div>
@@ -156,10 +116,11 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 											Edit
 									</button>
 
-									{/** Delete checklist item */}
+									{/** Delete checklist item 
 									<button className="submitButton" onClick={() => deleteChecklistItem(item._id)}>
 										Delete
 									</button>
+									*/}
 
 								</div>
 
@@ -171,11 +132,11 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 
 						{/** Update checklist item form */}
 						{showForm === item._id &&
-							<ItemForm
+							<ChecklistForm
 								form={form}
 								setForm={setForm}
 								setShowForm={setShowForm}
-								updateChecklist={updateChecklist}
+								upsertChecklist={upsertChecklist}
 							/>
 						}
 
@@ -192,42 +153,3 @@ export const LeftMenu = ({ Logout, checklist, setChecklist, leftExpanded, smallS
 	);
 };
 
-const ItemForm = ({ form, setForm, setShowForm, updateChecklist }) => {
-
-	const updateForm = (value, prop) => {
-		setForm(prev => ({
-			...prev, 
-			[prop]: value,
-		}))
-	}
-
-	return (
-		<div className='form'>
-			<div className="formRow">
-				<p className="formCell">Task</p>
-				<input
-					className="formCell"
-					placeholder="Name task here..."
-					value={form.title}
-					onChange={e => updateForm(e.target.value, 'title')}
-				/>
-			</div>
-			<textarea
-				className="formRow"
-				placeholder="Detail task here..."
-				value={form.note}
-				onChange={e => updateForm(e.target.value, 'note')}
-			/>
-			<input
-				className="formRow"
-				placeholder="0"
-				value={form.priority}
-				onChange={e => updateForm(e.target.value, 'priority')}
-			/>
-			<div className="submitRow right">
-				<button className="submitButton" onClick={() => updateChecklist()}>Save</button>
-				<button className="submitButton add" onClick={() => setShowForm(null)}>-</button>
-			</div>
-		</div>
-	);
-};

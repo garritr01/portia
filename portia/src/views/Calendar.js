@@ -1,5 +1,7 @@
-/* Calendar */
+// views/Calendar.js
+
 import React, { useState, useEffect, useMemo, useReducer } from 'react';
+import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
 import { useScreen } from '../contexts/ScreenContext';
 import {
 	clamp,
@@ -10,6 +12,7 @@ import {
 	monthLength,
 	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
+import { useCalendarDataHandler } from '../helpers/DataHandlers';
 import {
 	makeEmptyForm,
 	makeEmptyEvent,
@@ -18,7 +21,6 @@ import {
 	updateComposite,
 } from '../helpers/HandleComposite';
 import { useSwipe } from '../helpers/DynamicView';
-import { useSave } from '../requests/General';
 import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
 import { Floater } from '../components/Portal';
@@ -83,21 +85,11 @@ export const MonthView = ({ selectedDate, onDayClick, form, setForm }) => {
 };
 
 export const DayView = ({ 
-		events, // All user in range events (maybe cache later)
-		setEvents, // Update in place
-		forms, // All user forms always 
-		setForms,
-		recurs, // All instances of schedules... for appearing on calendar
-		setRecurs, 
-		schedules, // All schedules without hard stop before range
-		setSchedules, 
 		selectedDate, // Date which range is based on
 		days, 
 		onDayClick, // Could change span or just selected date, always changes range and causes update
 		leftExpanded, // For formatting
-		span // View to use
 	}) => {
-	const save = useSave();
 	
 	// --- SCREEN SIZE HANDLERS -------------------------------------------------------
 	const { smallScreen = false } = useScreen() || {};
@@ -108,10 +100,15 @@ export const DayView = ({
 	});
 
 	// --- EVENT/FORM/RECUR HANDLERS --------------------------------------------------
-	const [ showForm, setShowForm ] = useState({ _id: null });
-	const [ composite, reduceComposite ] = useReducer(updateComposite, initialCompositeState);
+	const [composite, reduceComposite] = useReducer(updateComposite, initialCompositeState);
+	const [showForm, setShowForm] = useState({ _id: null });
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
+	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm);
+	//useEffect(() => console.log('events', events), [events]);
+	//useEffect(() => console.log('forms', forms), [forms]);
+	//useEffect(() => console.log('schedules', schedules), [schedules]);
+	//useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
 	const recursMemo = useMemo(() => [ ...recurs ],[recurs]);
@@ -235,38 +232,6 @@ export const DayView = ({
 		});
 	};
 
-	// Update the event related stores (directlyPassedRecur is check mark click no additional detail)
-	const upsertComposite = async (specDirty) => {
-		try {
-			
-			console.log(composite);
-			const { event, form, schedules } = composite;
-
-			let formToSave = { ...form };
-			let eventToSave = { ...event };
-			let schedulesToSave = [ ...schedules ];
-
-			console.log("On save: ")
-			console.log("Sched: ", schedulesToSave);
-			console.log("Form: ", formToSave);
-			console.log("Event: ", eventToSave);
-			console.log("Dirty: ", specDirty);
-
-			if (!form.includeStart) {
-				eventToSave.startStamp = event.endStamp; // If no start, set to end for convenience
-			}
-			
-			const saved = await save('events', 'POST', { form: formToSave, event: eventToSave, schedules: schedulesToSave, dirty: specDirty })
-
-			if (saved) {
-				console.log("Saved returns:", saved);
-				reduceComposite({ type: 'reset' });
-			}
-		} catch (err) {
-			console.error('Error in updateComposite:', err)
-		}
-	}
-
 	return (
 		<>
 			{/** Calendar Navigation */}
@@ -309,9 +274,9 @@ export const DayView = ({
 				</div>
 				:
 				<div className="navigationBar">
-					<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')}>❮❮❮</button>
+					<FiChevronsLeft className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')}/>
 					<button className="navButton" onClick={() => onDayClick(selectedDate, 'month')}>{month}</button>
-					<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')}>❯❯❯</button>
+					<FiChevronsRight className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')}/>
 				</div>
 			}
 			<div className="dayView">
@@ -347,11 +312,11 @@ export const DayView = ({
 									</div>
 								))
 							}
-							<button className="createButton" onClick={() => {
+							<FiPlus className="createButton" onClick={() => {
 								reduceComposite({ type: 'reset' });
 								setShowForm({ _id: 'new' });
 								setFormDate(date);
-							}}>+</button>
+							}}/>
 						</div>
 					</div>
 				))}
@@ -359,8 +324,8 @@ export const DayView = ({
 					<Floater>
 						<CompositeForm
 							composite={composite} reduceComposite={reduceComposite}
-							setShowForm={setShowForm} upsertComposite={upsertComposite}
-							formDate={formDate}
+							setShowForm={setShowForm} formDate={formDate}
+							upsertComposite={upsertComposite}
 						/>
 					</Floater>
 				}

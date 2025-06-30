@@ -68,4 +68,20 @@ def upsertComposite(payload: dict, uID: str) -> dict:
 		batch.set(eventRef, {**eventData, "ownerID": uID})
 
 	batch.commit()
-	return { "formID": formID, "eventID": eventID, "scheduleIDs": schedIDs }
+
+	# Read the stored objects and return (respects security rule changes)
+	form = formsCo.document(formID).get()
+	updatedForm = { **form.to_dict(), "_id": form.id }
+
+	updatedSchedules = []
+	for sID in schedIDs:
+		sched = schedulesCo.document(sID).get()
+		updatedSchedules.append({ **sched.to_dict(), "_id": sched.id })
+
+	if dirty["event"]:
+		event = eventsCo.document(eventID).get()
+		updatedEvent = { **event.to_dict(), "_id": event.id }
+	else:
+		updatedEvent = { "_id": None }
+
+	return { "form": updatedForm, "event": updatedEvent, "schedules": updatedSchedules }

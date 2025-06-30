@@ -15,7 +15,6 @@ def listSchedules(uID):
 	docs = schedulesCo.where("ownerID", "==", uID).stream()
 	return jsonify([{**d.to_dict(), "_id": d.id} for d in docs]), 200
 
-
 @schedulesBP.route("", methods=["POST"])
 @logRequests
 @handleFirebaseAuth

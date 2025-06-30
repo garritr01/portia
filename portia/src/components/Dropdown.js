@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { FiChevronDown } from 'react-icons/fi';
 import { useKeyNav } from '../contexts/KeyNavContext';
 import { useScreen } from '../contexts/ScreenContext';
 import { measureTextWidth } from '../helpers/Measure';
@@ -285,9 +286,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 				}
 
 				{/** Dropdown arrow for opening/closing */}
-				<span className={`chevron ${isOpen ? "open" : ""}`} ref={chevRef} >
-					▼
-				</span>
+				<FiChevronDown className={`chevron ${isOpen ? "open" : ""}`} ref={chevRef}/>
 
 				<ErrorInfoButton {...errorInfo} />
 

@@ -1,3 +1,5 @@
+// helpers/HandleComposite.js
+
 export const makeEmptyForm = () =>  ({
 	_id: null, // Carry _id if already exists
 	path: '', // For display and maybe filesystem use later

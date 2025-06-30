@@ -1,4 +1,3 @@
-import { refEqual } from 'firebase/firestore';
 import { RRule, rrulestr } from 'rrule';
 
 export const periodOptions = [
@@ -32,6 +31,18 @@ export const monthOptions = [
 	{ display: "Nov", value: 10 },
 	{ display: "Dec", value: 11 }
 ];
+
+/* Convert predefined keys to Date objects */
+const timeStampKeys = ['startStamp', 'endStamp', 'startRangeStamp', 'endRangeStamp'];
+export const timeStampsToDate = obj => {
+	return Object.fromEntries(
+		Object.entries(obj).map(([k, v]) =>
+			timeStampKeys.includes(k) && v
+				? [k, new Date(v)]
+				: [k, v]
+		)
+	);
+};
 
 /* Sort checklist on load */
 export const sortChecklist = (checklist) => {
@@ -305,7 +316,6 @@ export const rRuleStrToRRule = (rRuleStr) => {
  * @returns 
  */
 export const rRuleToObj = (rRule) => {
-	console.log("RRule in: ", rRule);
 	const op = rRule.origOptions || rRule.options
 
 	const period = period2rRule.find(([p, rP]) => rP === op.freq)[0] || 'daily';
@@ -355,10 +365,43 @@ export const objToRRule = (obj) => {
  * @returns
  */
 export const getOccurances = (rRule, start, end) => {
-	const { dtstart, ...restOpts } = rRule.options;
-	const adjStart = rRule.before(start, true) || dtstart;
-	const adjRRule = new RRule({ ...restOpts, dtstart: adjStart });
+	let { dtstart, ...restOpts } = rRule.options;
+	dtstart = rRule.before(start, true) || dtstart;
+	const adjRRule = new RRule({ ...restOpts, dtstart });
 	return adjRRule.between(start, end, true);
 }
 
 // #endregion
+
+export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
+	const filteredRecurs = allRecurs.filter((recur) => !schedules.some(s => s._id === recur._id));
+	schedules.forEach(sched => {
+		if (sched.period === 'single') {
+			filteredRecurs.push({
+				_id: sched._id,
+				path: sched.path,
+				startStamp: sched.startStamp,
+				endStamp: sched.endStamp,
+			})
+		} else {
+			const ruleStart = new Date(sched.startRangeStamp);
+			const ruleEnd = new Date(sched.endRangeStamp);
+			const latestStart = startDate < ruleStart ? ruleStart : startDate;
+			const earliestEnd = (ruleEnd && endDate > ruleEnd) ? ruleEnd : endDate;
+			const rule = objToRRule(sched);
+			const recurs = getOccurances(rule, latestStart, earliestEnd);
+
+			console.log('Results: ', sched.path, recurs);
+
+			recurs.forEach(recur => {
+				filteredRecurs.push({
+					_id: sched._id,
+					path: sched.path,
+					startStamp: recur,
+					endStamp: addTime(recur, timeDiff(ruleEnd, ruleStart))
+				});
+			});
+		}
+	});
+	return filteredRecurs;
+}
