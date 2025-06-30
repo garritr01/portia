@@ -34,8 +34,7 @@ const makeEmptySchedule = () => ({
 	endStamp: new Date(), // Use date here, but store as endStamp in ms
 	period: null, // null (no schedule)/single/daily/weekly/monthly/yearly
 	interval: 1, // Every other day/week etc...
-	startRangeStamp: new Date(), // Range to repeat within
-	endRangeStamp: new Date(),
+	until: new Date(), // Range to repeat within
 	tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", // Timezone to base recurrence on
 });
 ```

@@ -240,24 +240,15 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, schedules, erro
 			{/** EFFECTIVE RANGE */}
 			{schedule.period && schedule.period !== 'single' &&
 				<div className="form">
-					<strong>Effective Range</strong>
-					<InteractiveTime
-						text={'Start'}
-						objKey={'schedules'}
-						schedIdx={editSchedule}
-						fieldKey={'startRangeStamp'}
-						date={new Date(schedule.startRangeStamp)}
-						reduceComposite={reduceComposite}
-						errorInfo={{ errID: "startRangeStamp", err: errors?.startRangeStamp?.err }}
-					/>
+					<strong>Until</strong>
 					<InteractiveTime
 						text={'End'}
 						objKey={'schedules'}
 						schedIdx={editSchedule}
-						fieldKey={'endRangeStamp'}
-						date={new Date(schedule.endRangeStamp)}
+						fieldKey={'until'}
+						date={new Date(schedule.until)}
 						reduceComposite={reduceComposite}
-						errorInfo={{ errID: "endRangeStamp", err: errors?.endRangeStamp?.err }}
+						errorInfo={{ errID: "until", err: errors?.until?.err }}
 					/>
 				</div>
 			}

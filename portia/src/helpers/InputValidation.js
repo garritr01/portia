@@ -135,8 +135,7 @@ export const validateSchedule = (sched) => {
 		endStamp: ['date'],
 		period: ['string'],
 		interval: ['number', numberCheck],
-		startRangeStamp: ['undefined', 'date'],
-		endRangeStamp: ['undefined', 'date'],
+		until: ['undefined', 'date'],
 		tz: ['any', tzCheck],
 	}
 

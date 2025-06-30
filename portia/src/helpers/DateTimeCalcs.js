@@ -33,7 +33,7 @@ export const monthOptions = [
 ];
 
 /* Convert predefined keys to Date objects */
-const timeStampKeys = ['startStamp', 'endStamp', 'startRangeStamp', 'endRangeStamp'];
+const timeStampKeys = ['startStamp', 'endStamp', 'until'];
 export const timeStampsToDate = obj => {
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>
@@ -343,7 +343,8 @@ export const objToRRule = (obj) => {
 	const options = {
 		freq: period2rRule.find(([p, rP]) => p === obj.period)[1] || RRule.DAILY,
 		interval: obj.interval || 1,
-		dtstart: obj.startStamp
+		dtstart: obj.startStamp,
+		until: obj.until
 	};
 	if (obj.period === 'weekly') {
 		options.byweekday = obj.spec.map(i => weekday2rRule[i]);
@@ -384,12 +385,8 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 				endStamp: sched.endStamp,
 			})
 		} else {
-			const ruleStart = new Date(sched.startRangeStamp);
-			const ruleEnd = new Date(sched.endRangeStamp);
-			const latestStart = startDate < ruleStart ? ruleStart : startDate;
-			const earliestEnd = (ruleEnd && endDate > ruleEnd) ? ruleEnd : endDate;
 			const rule = objToRRule(sched);
-			const recurs = getOccurances(rule, latestStart, earliestEnd);
+			const recurs = getOccurances(rule, startDate, endDate);
 
 			console.log('Results: ', sched.path, recurs);
 
@@ -398,7 +395,7 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 					_id: sched._id,
 					path: sched.path,
 					startStamp: recur,
-					endStamp: addTime(recur, timeDiff(ruleEnd, ruleStart))
+					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamo))
 				});
 			});
 		}
