@@ -31,7 +31,7 @@ export const initialCompositeState = {
 	form: makeEmptyForm(),
 	event: makeEmptyEvent(),
 	schedules: [],
-	dirty: { form: false, event: false, schedules: [] },
+	dirty: { form: false, event: false, schedules: {} },
 	errors: { form: {}, event: {}, schedules: {} },
 };
 
@@ -63,15 +63,17 @@ export const updateComposite = (state, action) => {
 		const [objType, ...rest] = action.path;
 		if (objType === 'schedules') {
 			const [idx, ...schedRest] = rest;
+			const key = state.schedules[idx]?._id ?? `new_${idx}`
 			return {
 				...state,
 				[objType]: setNested(state.schedules, rest, action.value),
 				dirty: {
 					...state.dirty,
 					// Dirty if already dirty or the edited index
-					[objType]: state.dirty.schedules.length > idx ?
-						state.dirty.schedules.map((prev, i) => i === idx ? true : prev)
-						: [ ...state.dirty.schedules, true ],
+					[objType]: {
+						...state.dirty.schedules,
+						[key]: true
+					}
 				},
 			};
 		} else {
@@ -94,14 +96,18 @@ export const updateComposite = (state, action) => {
 				form: state.dirty.form || Boolean(action.form), // Dirty if already dirty, otherwise check for corresponding action
 				event: state.dirty.event || Boolean(action.event),
 				schedules: action.schedules ? 
-					// Dirty if already dirty or no _id (new schedule) - this should only be triggered on delete
-					action.schedules.map((s, i) => {
-						const wasDirty = (state.dirty.schedules[i] || false);
-						const isNew = (s._id === null);
-						return (wasDirty || isNew);
-					}) : (
-						[ ...state.dirty.schedules ]
-					)
+					(() => {
+						const newDirty = { ...state.dirty.schedules };
+						action.schedules.forEach((s, idx) => {
+							const key = s._id ?? `new_${idx}`;
+							newDirty[key] = newDirty[key] || s._id === null // Keep previous or make true if no _id
+						});
+						state.schedules.forEach((s, idx) => {
+							const key = s._id ?? `new_${idx}`;
+							if (!action.schedules.some((s, i) => (s._id ?? `new_${i}`) === key)) { newDirty[key] = true } // Set dirty to true if removed
+						})
+						return newDirty;
+					})() : { ...state.dirty.schedules }
 			},
 		}
 	}

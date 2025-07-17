@@ -34,6 +34,7 @@ def upsertComposite(payload: dict, uID: str) -> dict:
 
 	batch = db.batch()
 
+	# Need to get formID for later, only update if dirty (probably could be more concise later, should always be dirty if new)
 	if formID: # If formID present, update
 		formRef = formsCo.document(formID)
 	else: # Else, create
@@ -41,31 +42,43 @@ def upsertComposite(payload: dict, uID: str) -> dict:
 		formID  = formRef.id
 	if dirty['form']: # Save form if dirty
 		batch.set(formRef, {**formData, "ownerID": uID}, merge=True)
-	eventData["formID"] = formID # Store formID with event
 
 	# Iterate through schedules and save if dirty
-	for s in range(len(schedData)):
-		oneSched = schedData[s]
-		oneSched["formID"] = formID # Add formID to reference when resolving events
-		schedID = oneSched.pop("_id", None)
-		if schedID and dirty['schedules'][s]: # If schedID present, update
+	for i, sched in enumerate(schedData):
+		schedID = sched.pop("_id", None)
+		key = schedID if schedID else f'new_{i}' # use 'new_{index}' dirty key if is is none
+		
+		if not dirty['schedules'][key]:
+			continue
+
+		sched["formID"] = formID # Add formID for reference
+		if schedID: # If schedID present, update
 			schedRef = schedulesCo.document(schedID)
-			batch.set(schedRef, {**oneSched, "ownerID": uID}, merge=True)
-		elif dirty['schedules'][s]: # Else, create
+			batch.set(schedRef, {**sched, "ownerID": uID}, merge=True)
+		else: # Else, create
 			schedRef = schedulesCo.document()
 			schedID  = schedRef.id
-			batch.set(schedRef, {**oneSched, "ownerID": uID})
+			batch.set(schedRef, {**sched, "ownerID": uID})
 		
-		schedIDs.append(schedID)
+		schedIDs.append(schedID) # Add updated ids to return to frontend
+
+	# Remove deleted schedules
+	for k, isDirty in dirty['schedules'].items():
+		if not isDirty or k.startswith('new_'):
+			continue
+		if k not in schedIDs:
+			ref = schedulesCo.document(k).delete()
 
 	# Save event if dirty
-	if eventID and dirty['event']: # If eventID present, update
-		eventRef = eventsCo.document(eventID)
-		batch.set(eventRef, { **eventData, "ownerID": uID }, merge=True)
-	elif dirty['event']: # Else, create
-		eventRef = eventsCo.document()
-		eventID  = eventRef.id
-		batch.set(eventRef, {**eventData, "ownerID": uID})
+	if dirty['event']:
+		eventData["formID"] = formID # Store formID with event
+		if eventID : # If eventID present, update
+			eventRef = eventsCo.document(eventID)
+			batch.set(eventRef, { **eventData, "ownerID": uID }, merge=True)
+		else: # Else, create
+			eventRef = eventsCo.document()
+			eventID  = eventRef.id
+			batch.set(eventRef, {**eventData, "ownerID": uID})
 
 	batch.commit()
 
