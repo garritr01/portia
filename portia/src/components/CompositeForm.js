@@ -126,25 +126,7 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	)
 }
 
-const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, schedules, errors, ogState, reduceComposite }) => {
-
-	// Reset to last committed state
-	const handleRevertSchedule = () => {
-		// Revert if ogState is not empty, otherwise delete
-		const old = ogState.current.schedule;
-		if (old && Object.keys(old).length > 0) {
-			console.log("Reverting existing og schedule.")
-			reduceComposite({
-				type: 'drill',
-				path: ['schedules', editSchedule],
-				value: old,
-			});
-		} else {
-			console.log("Reverting absent og schedule.")
-			reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== editSchedule) });
-		}
-		setEditSchedule(null);
-	};
+const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, ogState, reduceComposite }) => {
 
 	const handleCommitSchedule = () => {
 		// Push endStamp a week forward if weekly and before start stamp (hack to allow weekly event sat -> sun etc)
@@ -159,7 +141,6 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, schedules, erro
 			endStamp: pushEndByWeek ? addTime(schedule.endStamp, { days: 7 }) : schedule.endStamp,
 		};
 		reduceComposite({ type: 'drill', path: ['schedules', editSchedule], value: newSchedule });
-		ogState.current.schedule = newSchedule;
 		setEditSchedule(null);
 	};
 
@@ -255,7 +236,6 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, schedules, erro
 
 			{/** REVERT OR COMMIT */}
 			<div className="submitRow right">
-				<FiRotateCcw className="submitButton" onClick={() => handleRevertSchedule()} />
 				<FiCheckSquare className="submitButton" onClick={() => handleCommitSchedule()} />
 			</div>
 
@@ -523,14 +503,37 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 	// Holds last state for easy reversion
 	const ogState = useRef({
 		form: { ...form, info: [...form.info] },
-		schedule: editSchedule !== null ? { ...schedules[editSchedule] } : {},
+		schedule: {},
 	});
 
-	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);
-	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	useEffect(() => {
+		ogState.current.schedule = editSchedule !== null ? { ...schedules[editSchedule] } : {};
+		//console.log('ogSched:', editSchedule !== null ? { ...schedules[editSchedule] } : {});
+	}, [editSchedule]);
+
+	useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("event:\n", event), [event]);
+	useEffect(() => console.log("schedules:\n", schedules), [schedules]);
+	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
+
+	// Reset to last committed state
+	const handleRevertSchedule = () => {
+		// Revert if ogState is not empty, otherwise delete
+		const old = ogState.current.schedule;
+		if (old.period) {
+			console.log("Reverting existing og schedule.")
+			reduceComposite({
+				type: 'drill',
+				path: ['schedules', editSchedule],
+				value: old,
+			});
+		} else {
+			console.log("Reverting absent og schedule.")
+			reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== editSchedule) });
+		}
+		setEditSchedule(null);
+	};
 
 	const handleRevertForm = () => {
 		reduceComposite({ type: 'update', form: ogState.current.form });
@@ -665,7 +668,6 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 						}>
 						Start
 					</button>
-					<FiRotateCcw className="relButton" onClick={() => handleRevertForm()} />
 					<FiCheckSquare className="relButton" onClick={() => handleCommitForm()} />
 				</div>
 			}
@@ -715,11 +717,15 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 				<FiCalendar
 					className={editSchedule === null ? "submitButton" : "submitButton selected"}
 					onClick={() => {
-						setEditSchedule(schedules.length);
-						reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: makeEmptySchedule(event.path) });
+						if (editSchedule === null) {
+							setEditSchedule(schedules.length);
+							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: makeEmptySchedule(event.path) });
+						} else {
+							handleRevertSchedule();
+						}
 					}}
 					/>
-				<FiFileText className={edit ? "submitButton selected" : "submitButton"} onClick={() => setEdit(true)}/>
+				<FiFileText className={edit ? "submitButton selected" : "submitButton"} onClick={() => !edit ? setEdit(true) : handleRevertForm()}/>
 				<FiCheckCircle className="submitButton" onClick={() => handleUpsert(false)}/>
 				<FiSave className="submitButton" onClick={() => handleUpsert(true)}/>
 				<FiX className="submitButton add" onClick={() => setShowForm({ _id: null })}/>

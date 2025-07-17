@@ -108,7 +108,7 @@ export const DayView = ({
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
 	//useEffect(() => console.log('schedules', schedules), [schedules]);
-	//useEffect(() => console.log('recurs', recurs), [recurs]);
+	useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
 	const recursMemo = useMemo(() => [ ...recurs ],[recurs]);
@@ -232,6 +232,24 @@ export const DayView = ({
 		});
 	};
 
+	const createCompositeFromRecur = (recur) => {
+		const newScheds = schedules.filter(s => s.path === recur.path);
+		const newForm = forms.find(f => f._id === newScheds[0].formID);
+		let newEvent = { 
+			...makeEmptyEvent(), 
+			...recur,
+			_id: null,
+			formID: newForm._id,
+			scheduleID: recur._id,
+			scheduleStart: recur.startStamp,
+			info: newForm.info.map(f => ({
+				...f,
+				content: f.type === 'input' || f.type === 'text' ? [''] : null
+			}))
+		};
+		reduceComposite({ type: 'update', event: newEvent, form: newForm, schedules: newScheds });
+	}
+
 	return (
 		<>
 			{/** Calendar Navigation */}
@@ -302,7 +320,12 @@ export const DayView = ({
 								.map(item => (
 									<div className="formRow" key={item.id}>
 										<button className="relButton" onClick={() => {
-											setShowForm({ _id: item._id, startStamp: item.startStamp, endStamp: item.endStamp });
+											if (item.info) {
+												setShowForm({ _id: item._id }); // click event case
+											} else {
+												createCompositeFromRecur(item);
+												setShowForm({ _id: 'new' }); // click recur case
+											}
 										}}>{item.path}</button>
 										<p className="sep">
 											{new Date(item.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}

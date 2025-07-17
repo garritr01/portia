@@ -77,7 +77,7 @@ export const addTime = (jsDate, addend) => {
 	if (addend.hours) {
 		date.setHours(date.getHours() + addend.hours);
 	}
-	if (addend.seconds) {
+	if (addend.minutes) {
 		date.setMinutes(date.getMinutes() + addend.minutes);
 	}
 
@@ -393,7 +393,7 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 					_id: sched._id,
 					path: sched.path,
 					startStamp: recur,
-					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamo))
+					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp))
 				});
 			});
 		}
