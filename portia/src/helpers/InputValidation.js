@@ -109,7 +109,7 @@ export const validateEvent = (event) => {
 		path: ['string', pathCheck],
 		scheduleStart: ['null', 'date'],
 		info: {
-			content: ['string'],
+			content: ['string', 'boolean'],
 			label: ['string'],
 			type: ['string'],
 			options: ['string'],

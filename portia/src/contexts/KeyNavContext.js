@@ -42,7 +42,6 @@ export const KeyNavProvider = ({ children }) => {
 			focusChildInput && 
 			childInput instanceof HTMLElement
 		) { 
-			console.log("Focusing new"); 
 			childInput.focus();
 		}
 		setCurrent(cell);

@@ -386,9 +386,7 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 			})
 		} else {
 			const rule = objToRRule(sched);
-			const recurs = getOccurances(rule, startDate, endDate);
-
-			console.log('Results: ', sched.path, recurs);
+			const recurs = getOccurances(rule, startDate, addTime(endDate, { 'days': 1 }));
 
 			recurs.forEach(recur => {
 				filteredRecurs.push({

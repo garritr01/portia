@@ -219,7 +219,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 	const { goNext } = useKeyNav() || {};
 
 	const handleArrow = useCallback((e) => {
-		if (!isOpen || !listRef?.current || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }
+		if (!isOpen || !listRef?.current || e.ctrlKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }
 
 		e.preventDefault();
 		const addend = e.key === "ArrowDown" ? 1 : -1;

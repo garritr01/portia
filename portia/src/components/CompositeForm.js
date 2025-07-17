@@ -529,7 +529,7 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
 	const handleRevertForm = () => {
@@ -577,6 +577,7 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 		if (saveEvent) {
 			const valid = validateEvent(event);
 			reduceComposite({ type: 'update', errors: { ...errors, event: valid.validity } });
+			console.log(valid);
 			if (!valid.isValid) { return }
 		}
 		upsertComposite(composite, outDirty);
