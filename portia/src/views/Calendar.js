@@ -234,7 +234,7 @@ export const DayView = ({
 	const createCompositeFromRecur = (recur) => {
 		const newScheds = schedules.filter(s => s.path === recur.path);
 		let newForm = forms.find(f => f._id === newScheds[0].formID);
-		if (!newForm.includeStart && new Date(recur.startStamp).getTime !== new Date(recur.endStamp)) {
+		if (!newForm.includeStart && new Date(recur.startStamp).getTime() !== new Date(recur.endStamp).getTime()) {
 			newForm = { ...newForm, includeStart: true }
 		}
 		let newEvent = { 
