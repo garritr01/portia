@@ -233,7 +233,10 @@ export const DayView = ({
 
 	const createCompositeFromRecur = (recur) => {
 		const newScheds = schedules.filter(s => s.path === recur.path);
-		const newForm = forms.find(f => f._id === newScheds[0].formID);
+		let newForm = forms.find(f => f._id === newScheds[0].formID);
+		if (!newForm.includeStart && new Date(recur.startStamp).getTime !== new Date(recur.endStamp)) {
+			newForm = { ...newForm, includeStart: true }
+		}
 		let newEvent = { 
 			...makeEmptyEvent(), 
 			...recur,
@@ -246,7 +249,7 @@ export const DayView = ({
 				content: f.type === 'input' || f.type === 'text' ? [''] : null
 			}))
 		};
-		reduceComposite({ type: 'update', event: newEvent, form: newForm, schedules: newScheds });
+		reduceComposite({ type: 'set', event: newEvent, form: newForm, schedules: newScheds });
 	}
 
 	return (

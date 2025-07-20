@@ -543,10 +543,10 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	//useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("form:\n", form), [form]);
 	useEffect(() => console.log("event:\n", event), [event]);
-	useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
+	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
 	// Reset to last committed state

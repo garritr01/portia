@@ -56,6 +56,9 @@ const setNested = (obj, path, value) => {
 }
 
 // Reducer for updating composite (event, form, schedules) state
+// action = { 
+// 	type: 'drill' -> update with keypath + dirty, 'update' -> full update + dirty, 'set' -> full update w/o dirtying 
+// }
 export const updateComposite = (state, action) => {
 	if (action.type === 'reset') {
 		return initialCompositeState;
@@ -92,23 +95,32 @@ export const updateComposite = (state, action) => {
 			event: action.event ? { ...state.event, ...action.event } : state.event,
 			schedules: action.schedules ? action.schedules : state.schedules,
 			errors: action.errors ? action.errors : state.errors,
-			dirty: {
-				form: state.dirty.form || Boolean(action.form), // Dirty if already dirty, otherwise check for corresponding action
-				event: state.dirty.event || Boolean(action.event),
-				schedules: action.schedules ? 
-					(() => {
-						const newDirty = { ...state.dirty.schedules };
-						action.schedules.forEach((s, idx) => {
-							const key = s._id ?? `new_${idx}`;
-							newDirty[key] = newDirty[key] || s._id === null // Keep previous or make true if no _id
-						});
-						state.schedules.forEach((s, idx) => {
-							const key = s._id ?? `new_${idx}`;
-							if (!action.schedules.some((s, i) => (s._id ?? `new_${i}`) === key)) { newDirty[key] = true } // Set dirty to true if removed
-						})
-						return newDirty;
-					})() : { ...state.dirty.schedules }
-			},
+			dirty: action.type === 'set' ?
+				{
+					form: false,
+					event: true,
+					schedules: Object.keys(state.dirty.schedules).reduce((acc, key) => {
+						acc[key] = false;
+						return acc;
+					}, {})
+				}
+				:	{
+					form: state.dirty.form || Boolean(action.form), // Dirty if already dirty, otherwise check for corresponding action
+					event: state.dirty.event || Boolean(action.event),
+					schedules: action.schedules ? 
+						(() => {
+							const newDirty = { ...state.dirty.schedules };
+							action.schedules.forEach((s, idx) => {
+								const key = s._id ?? `new_${idx}`;
+								newDirty[key] = newDirty[key] || s._id === null // Keep previous or make true if no _id
+							});
+							state.schedules.forEach((s, idx) => {
+								const key = s._id ?? `new_${idx}`;
+								if (!action.schedules.some((s, i) => (s._id ?? `new_${i}`) === key)) { newDirty[key] = true } // Set dirty to true if removed
+							})
+							return newDirty;
+						})() : { ...state.dirty.schedules }
+				},
 		}
 	}
 }
