@@ -99,8 +99,8 @@ export const updateComposite = (state, action) => {
 				{
 					form: false,
 					event: true,
-					schedules: Object.keys(state.dirty.schedules).reduce((acc, key) => {
-						acc[key] = false;
+					schedules: action.schedules.reduce((acc, sched) => {
+						acc[sched._id] = false;
 						return acc;
 					}, {})
 				}
