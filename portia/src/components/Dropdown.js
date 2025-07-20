@@ -26,6 +26,9 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 	const lensRef = useRef(null);
 	const snapTimeout = useRef(null);
 
+	// Keep rVal synced with composite
+	useEffect(() => setRVal(value), [value]);
+
 	const isOpen =
 		currentNav instanceof HTMLElement
 		&& headRef.current instanceof HTMLElement
@@ -125,6 +128,9 @@ export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, set
 					: { display: String(start + i), value: (start + i) }
 		));
 	}, [start]);
+
+	// Keep rVal synced with composite
+	useEffect(() => setRVal(value), [value]);
 
 	// Snap to selected if open
 	useEffect(() => {

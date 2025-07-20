@@ -195,7 +195,6 @@ export const DayView = ({
 	// Mobile date selection before applying new date
 	const [tempDate, setTempDate] = useState(new Date(selectedDate)); 
 	// For autofilling datetimes in form
-	const [ formDate, setFormDate ] = useState(new Date(selectedDate));
 
 	// Guard against leap year
 	const handleYearChange = (newYear) => {
@@ -337,8 +336,12 @@ export const DayView = ({
 							}
 							<FiPlus className="createButton" onClick={() => {
 								reduceComposite({ type: 'reset' });
+								const clicked = new Date(date);
+								const current = new Date();
+								clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
+								reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
+								reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
 								setShowForm({ _id: 'new' });
-								setFormDate(date);
 							}}/>
 						</div>
 					</div>
@@ -347,7 +350,7 @@ export const DayView = ({
 					<Floater>
 						<CompositeForm
 							composite={composite} reduceComposite={reduceComposite}
-							setShowForm={setShowForm} formDate={formDate}
+							setShowForm={setShowForm}
 							upsertComposite={upsertComposite}
 						/>
 					</Floater>

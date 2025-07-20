@@ -33,7 +33,7 @@ import { useDataHandler } from '../helpers/DataHandlers';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
 
-export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, errorInfo, reduceComposite }) => {
+export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, errorInfo, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
 	const [rawParts, setRawParts] = useState(editFriendlyDateTime(null));
 	const [format, setFormat] = useState({ order: [] });
 
@@ -64,12 +64,26 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	const commitPart = (unit, newVal) => {
 		try {
 			const upDate = calcFriendlyDateTime(unit, date, { ...rawParts, [unit]: newVal });
-			if (schedIdx === null && objKey === 'event') {
+			if (objKey === 'event') {
 				// 'event' case
+				console.log([objKey, fieldKey], upDate);
 				reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
+				// Handle syncing of start and end datetimes
+				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventEnd: false })) }
+				if (fieldKey === 'startStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventStart: false })) }
+				if (syncStartAndEnd.eventStart && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, 'startStamp'], value: upDate }) }
+				if (syncStartAndEnd.eventEnd && fieldKey === 'startStamp') { reduceComposite({ type: 'drill', path: [objKey, 'endStamp'], value: upDate }) }
 			} else if (objKey === 'schedules') {
 				// 'schedules' case
+				console.log([objKey, schedIdx, fieldKey], upDate);
 				reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
+				// Handle syncing of start and end datetimes
+				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: false })) } 
+				if (fieldKey === 'until') { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) } 
+				if (syncStartAndEnd.scheduleEnd && fieldKey === 'startStamp') {
+					reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'endStamp'], value: upDate });
+					if (syncStartAndEnd.scheduleUntil) { reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate }) }
+				} if (syncStartAndEnd.scheduleUntil && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate }) }
 			} else {
 				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
 			}
@@ -126,7 +140,7 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	)
 }
 
-const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, ogState, reduceComposite }) => {
+const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
 
 	const handleCommitSchedule = () => {
 		// Push endStamp a week forward if weekly and before start stamp (hack to allow weekly event sat -> sun etc)
@@ -204,6 +218,8 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, ogState
 						date={new Date(schedule.startStamp)}
 						reduceComposite={reduceComposite}
 						errorInfo={{ errID: "startStamp", err: errors?.startStamp?.err }}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 					/>
 					<InteractiveTime
 						text={'End'}
@@ -214,6 +230,8 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, ogState
 						date={new Date(schedule.endStamp)}
 						reduceComposite={reduceComposite}
 						errorInfo={{ errID: "endStamp", err: errors?.endStamp?.err }}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 					/>
 				</div>
 			}
@@ -230,6 +248,8 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, ogState
 						date={new Date(schedule.until)}
 						reduceComposite={reduceComposite}
 						errorInfo={{ errID: "until", err: errors?.until?.err }}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 					/>
 				</div>
 			}
@@ -394,7 +414,7 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 	);
 }
 
-const EventForm = ({ event, errors, changeField, reduceComposite }) => {
+const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
 
 	const addInput = (idx) => {
 		if (event.info[idx].type !== 'input') {
@@ -499,6 +519,12 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 	const [editSchedule, setEditSchedule] = useState(null);
 	const schedule = editSchedule !== null ? schedules[editSchedule] : null;
 	const [edit, setEdit] = useState(false);
+	const [syncStartAndEnd, setSyncStartAndEnd] = useState({
+		eventStart: !form.includeStart,
+		eventEnd: true,
+		scheduleEnd: true,
+		scheduleUntil: true
+	});
 
 	// Holds last state for easy reversion
 	const ogState = useRef({
@@ -506,15 +532,21 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 		schedule: {},
 	});
 
+	// Ensure current schedule is truly the current schedule
 	useEffect(() => {
 		ogState.current.schedule = editSchedule !== null ? { ...schedules[editSchedule] } : {};
 		//console.log('ogSched:', editSchedule !== null ? { ...schedules[editSchedule] } : {});
 	}, [editSchedule]);
 
-	useEffect(() => console.log("form:\n", form), [form]);
+	// Ensure event sync start with end corresponds to form.includeStart
+	useEffect(() => {
+		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
+	}, [form.includeStart]);
+
+	//useEffect(() => console.log("form:\n", form), [form]);
 	useEffect(() => console.log("event:\n", event), [event]);
 	useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
 	// Reset to last committed state
@@ -639,9 +671,10 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 						setEditSchedule={setEditSchedule}
 						schedule={editSchedule !== null ? schedules[editSchedule] : null}
 						schedules={schedules}
-						ogState={ogState}
 						errors={errors.schedule}
 						reduceComposite={reduceComposite}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 						/>
 				: (schedules.length > 0) &&
 					<SchedulePreview 
@@ -679,6 +712,8 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 						errors={errors.form}
 						changeField={changeField}
 						reduceComposite={reduceComposite}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 						/>
 				: /** EDIT EVENT INFO */
 					<EventForm
@@ -686,6 +721,8 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 						errors={errors.event}
 						changeField={changeField}
 						reduceComposite={reduceComposite}
+						syncStartAndEnd={syncStartAndEnd}
+						setSyncStartAndEnd={setSyncStartAndEnd}
 						/>
 			}
 
@@ -700,6 +737,8 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 					date={new Date(event.startStamp)}
 					reduceComposite={reduceComposite}
 					errorInfo={{ errID: "startStamp", err: errors?.event?.startStamp?.err }}
+					syncStartAndEnd={syncStartAndEnd}
+					setSyncStartAndEnd={setSyncStartAndEnd}
 				/>
 			}
 			<InteractiveTime
@@ -710,6 +749,8 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 				date={new Date(event.endStamp)}
 				reduceComposite={reduceComposite}
 				errorInfo={{ errID: "endStamp", err: errors?.event?.endStamp?.err }}
+				syncStartAndEnd={syncStartAndEnd}
+				setSyncStartAndEnd={setSyncStartAndEnd}
 			/>
 
 			{/** ACTIONS */}
@@ -717,15 +758,27 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 				<FiCalendar
 					className={editSchedule === null ? "submitButton" : "submitButton selected"}
 					onClick={() => {
+						setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: true }))
 						if (editSchedule === null) {
 							setEditSchedule(schedules.length);
-							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: makeEmptySchedule(event.path) });
+							const newSchedule = {
+								...makeEmptySchedule(event.path),
+								startStamp: event.startStamp,
+								endStamp: event.endStamp,
+								until: event.endStamp
+							};
+							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: newSchedule });
 						} else {
 							handleRevertSchedule();
 						}
-					}}
-					/>
-				<FiFileText className={edit ? "submitButton selected" : "submitButton"} onClick={() => !edit ? setEdit(true) : handleRevertForm()}/>
+					}}/>
+				<FiFileText className={edit ? "submitButton selected" : "submitButton"} onClick={() => {
+					if (!edit) { 
+						setEdit(true); 
+					} else { 
+						handleRevertForm(); 
+					}
+					}}/>
 				<FiCheckCircle className="submitButton" onClick={() => handleUpsert(false)}/>
 				<FiSave className="submitButton" onClick={() => handleUpsert(true)}/>
 				<FiX className="submitButton add" onClick={() => setShowForm({ _id: null })}/>
