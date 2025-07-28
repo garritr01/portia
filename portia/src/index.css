@@ -260,7 +260,8 @@ body,
 	padding-top: 0.125rem;
 }
 
-.form {
+.form,
+.navBlock {
 	position: absolute;
 	display: flex;
 	flex-direction: column;
@@ -275,22 +276,26 @@ body,
 	overflow: visible;
 }
 
-.form.wButtonRow {
+.form.wButtonRow,
+.navBlock.wButtonRow{
 	padding-top: 1.5rem;
 }
 
-.portal .form {
+.portal .form,
+.portal .navBlock {
 	position: relative;
 	box-sizing: border-box;
 	width: 100%;
 	overflow: visible;
 }
 
-.checklist .item .form {
+.checklist .item .form,
+.checklist .item .navBlock {
 	position: relative;
 }
 
-.formRow {
+.formRow,
+.navRow {
 	display: flex;
 	width: 100%;
 	padding-top: 0.25rem;
@@ -300,7 +305,8 @@ body,
 	border-radius: 0.125rem;
 }
 
-.formCell {
+.formCell,
+.navCell {
 	display: flex;
 	align-items: center;
 	border-radius: 0.0625rem;
@@ -310,7 +316,8 @@ body,
 	margin: 0;
 }
 
-.formRow input {
+.formRow input,
+.navRow input {
 	border: 0.0625rem solid var(--border2);
 	border-radius: 0.25rem;
 	display: flex;
@@ -321,11 +328,13 @@ body,
 	border: 1px solid var(--border3);
 }
 
-.formCell input.time {
+.formCell input.time,
+.navCell input.time {
 	width: 1.25rem;
 }
 
-.formCell input.year {
+.formCell input.year,
+.navCell input.year {
 	width: 2.5rem;
 }
 
@@ -334,7 +343,8 @@ body,
 	user-select: none;
 }
 
-textarea.formRow {
+textarea.formRow,
+textarea.navRow {
 	width: "100%";
 	resize: "vertical";
 }

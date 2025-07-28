@@ -46,7 +46,7 @@ export const ErrorInfoButton = ({ errID, err }) => {
 
 	if (!err) { return null }
 	return (
-		<div className="formCell">
+		<div className="navCell">
 			<FiAlertTriangle className="errIndicator" onClick={() => setVisible(prev => !prev)} />
 			{visible && 
 				<Notification style={errLoc}>{err}</Notification>

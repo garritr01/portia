@@ -112,11 +112,11 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	}
 
 	return (
-		<div id={fieldKey} className={errorInfo?.err ? "formRow erred" : "formRow"}>
+		<div id={fieldKey} className={errorInfo?.err ? "navRow erred" : "navRow"}>
 			<p className="sep">{text}</p>
 			{format.order.map((unit) => (
 				<React.Fragment key={`${fieldKey}_${unit}`}>
-					<div className="formCell">
+					<div className="navCell">
 						{unit === 'year' ?
 							<InfDropSelect
 								value={{ display: String(date.getFullYear()), value: date.getFullYear() }}
@@ -160,13 +160,13 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 	};
 
 	return (
-		<div className="form wButtonRow">
+		<div className="navBlock wButtonRow">
 			<strong>Schedule</strong>
 
 			{/** PERIOD */}
-			<div className="formRow">
+			<div className="navRow">
 				<p className="sep">Period</p>
-				<div id="period" className="formCell">
+				<div id="period" className="navCell">
 					<DropSelect
 						options={periodOptions}
 						value={periodOptions.find((option) => schedule.period === option.value)}
@@ -181,11 +181,11 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 			</div>
 
 			{/** INTERVAL */}
-			<div className="formRow">
+			<div className="navRow">
 				{schedule.period && schedule.period !== 'single' &&
 					<>
 						<p className="sep">Every</p>
-						<div id="interval" className={errors?.interval?.err ? "formCell errCell" : "formCell"}>
+						<div id="interval" className={errors?.interval?.err ? "navCell errCell" : "navCell"}>
 							<InfDropSelect
 								min={1}
 								value={{ display: String(schedule.interval), value: schedule.interval }} // Just so I can use the same View for both DropSelects
@@ -208,7 +208,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 
 			{/** ANCHOR EVENT */}
 			{schedule.period &&
-				<div className="form">
+				<div className="navBlock">
 					{schedule.period !== "single" && <strong>Anchor Event</strong>}
 					<InteractiveTime
 						text={'Start'}
@@ -239,7 +239,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 
 			{/** EFFECTIVE RANGE */}
 			{schedule.period && schedule.period !== 'single' &&
-				<div className="form">
+				<div className="navBlock">
 					<strong>Until</strong>
 					<InteractiveTime
 						text={'End'}
@@ -352,8 +352,8 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 	return (
 		form.info.map((f, idx) => (
 			<React.Fragment key={idx}>
-				<div className="formRow">
-					<div id={`${idx}-label`} className={errors?.info?.[idx]?.label?.err ? "formCell erred" : "formCell"}>
+				<div className="navRow">
+					<div id={`${idx}-label`} className={errors?.info?.[idx]?.label?.err ? "navCell erred" : "navCell"}>
 						<input
 							placeholder="Label..."
 							value={f.label}
@@ -362,7 +362,7 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 						<ErrorInfoButton errID={`${idx}-label`} err={errors?.info?.[idx]?.label?.err} />
 					</div>
 					{f.type === 'input' ?
-						<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "formCell erred" : "formCell"}>
+						<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "navCell erred" : "navCell"}>
 							<input
 								placeholder="Placeholder..."
 								value={f.placeholder}
@@ -381,8 +381,8 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 					{/* <button className="relButton" onPointerDown={() => startFieldDrag(idx)}>⇅</button> */}
 				</div>
 				{f.type === 'text' ?
-					<div className="formRow">
-						<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "formCell erred" : "formCell"}>
+					<div className="navRow">
+						<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "navCell erred" : "navCell"}>
 							<textarea
 								placeholder="Placeholder..."
 								value={f.placeholder}
@@ -392,10 +392,10 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 						</div>
 					</div>
 					: f.type === 'mc' ?
-						<div className="formRow">
+						<div className="navRow">
 							{f.options.map((opt, optIdx) => (
 								<React.Fragment key={optIdx}>
-									<div id={`${idx}-options-${optIdx}`} className={errors?.info?.[idx]?.options?.[optIdx]?.err ? "formCell erred" : "formCell"}>
+									<div id={`${idx}-options-${optIdx}`} className={errors?.info?.[idx]?.options?.[optIdx]?.err ? "navCell erred" : "navCell"}>
 										<input
 											placeholder={`Option ${optIdx + 1}...`}
 											value={opt}
@@ -451,12 +451,12 @@ const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEn
 	return (
 		event.info.map((f, idx) => (
 			<React.Fragment key={idx}>
-				<div className="formRow" key={idx}>
+				<div className="navRow" key={idx}>
 					<p className="sep">{f.label}</p>
 					{f.type === 'input' ?
 						<>
 							{f.content.map((inp, inpIdx) => (
-								<div key={inpIdx} id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "formCell erred" : "formCell"}>
+								<div key={inpIdx} id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "navCell erred" : "navCell"}>
 									<input key={inpIdx}
 										placeholder={f.placeholder + '...'}
 										value={inp}
@@ -469,7 +469,7 @@ const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEn
 							<button className="relButton" onClick={() => addInput(idx)}>+</button>
 						</>
 						: f.type === 'tf' ?
-							<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "formCell erred" : "formCell"}>
+							<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "navCell erred" : "navCell"}>
 								<button className={`relButton ${f.content === true ? 'selected' : ''}`}
 									onClick={() => changeField(['event', 'info', idx, 'content'], f.content === true ? null : true)}>
 									True
@@ -484,8 +484,8 @@ const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEn
 					}
 				</div>
 				{f.type === 'text' ?
-					<div className="formRow">
-						<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "formCell erred" : "formCell"}>
+					<div className="navRow">
+						<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "navCell erred" : "navCell"}>
 							<textarea
 								placeholder={f.placeholder + '...'}
 								value={f.content}
@@ -495,9 +495,9 @@ const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEn
 						</div>
 					</div>
 					: f.type === 'mc' ?
-						<div className="formRow">
+						<div className="navRow">
 							{f.options.map((opt, optIdx) => (
-								<div key={optIdx} id={`${idx}-content-${optIdx}`} className={errors?.event?.info?.[idx]?.options?.[optIdx]?.err ? "formCell erred" : "formCell"}>
+								<div key={optIdx} id={`${idx}-content-${optIdx}`} className={errors?.event?.info?.[idx]?.options?.[optIdx]?.err ? "navCell erred" : "navCell"}>
 									<button
 										className={`relButton ${f.content === opt ? 'selected' : ''}`}
 										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === opt ? null : opt)}>
@@ -545,7 +545,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("navBlock:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
@@ -668,11 +668,11 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	};
 
 	return (
-		<div className="form wButtonRow">
+		<div className="navBlock wButtonRow">
 
 			{/** PATH */}
-			<div className="formRow">
-				<div id="path" className={errors?.form?.path?.err ? "formCell erred" : "formCell"}>
+			<div className="navRow">
+				<div id="path" className={errors?.form?.path?.err ? "navCell erred" : "navCell"}>
 					<p className="sep">Path</p>
 					<DropSelect
 						options={suggPaths}
@@ -725,7 +725,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 			{/** ADD FORM ELEMENT ROW */}
 			{edit && 
-				<div className="formRow">
+				<div className="navRow">
 					<button className="relButton" onClick={() => addField('text')}>Text Box</button>
 					<button className="relButton" onClick={() => addField('input')}>Input</button>
 					<button className="relButton" onClick={() => addField('tf')}>T/F</button>

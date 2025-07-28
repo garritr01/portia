@@ -11,8 +11,8 @@ export const KeyNavProvider = ({ children }) => {
 	//useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	const rebuildNavOrder = useCallback(() => {
-		const rows = document.body.querySelectorAll(".form .formRow");
-		const navOrder2d = [ ...rows ].map(row => [ ...row.querySelectorAll(".formCell") ]).filter(row => row.length > 0);
+		const rows = document.body.querySelectorAll(".navBlock .navRow");
+		const navOrder2d = [ ...rows ].map(row => [ ...row.querySelectorAll(".navCell") ]).filter(row => row.length > 0);
 		//console.log("NavOrder2D:", navOrder2d);
 		orderRef.current = navOrder2d;
 	}, []);
@@ -20,7 +20,7 @@ export const KeyNavProvider = ({ children }) => {
 	// Update current then focus & blur if applicable
 	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
 
-		const cell = newElm?.closest?.(".formCell");
+		const cell = newElm?.closest?.(".navCell");
 
 		// In case I ever realize I DO NEED the force blur
 		//if (current instanceof HTMLElement) {
@@ -64,9 +64,9 @@ export const KeyNavProvider = ({ children }) => {
 		const navUpdates = mutations.some((m) => (
 			[ ...m.addedNodes, ...m.removedNodes ].some((n) => (
 				n instanceof Element && (
-					n.matches('.form') ||
-					n.matches('.formRow') ||
-					n.matches('.formCell')
+					n.matches('.navBlock') ||
+					n.matches('.navRow') ||
+					n.matches('.navCell')
 				)
 			))
 		));
@@ -233,8 +233,8 @@ export const KeyNavProvider = ({ children }) => {
 	}, [current]);
 
 	const handleTouchStart = useCallback((e) => {
-		// Set current to .formCell if it or descendants were clicked
-		const cell = e.target.closest?.(".formCell");
+		// Set current to .navCell if it or descendants were clicked
+		const cell = e.target.closest?.(".navCell");
 		if (cell instanceof HTMLElement) { focusBehavior(cell, false) }
 		else { focusBehavior(null) }
 

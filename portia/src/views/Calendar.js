@@ -390,38 +390,24 @@ export const DayView = ({
 								{daysEvents.map((item, jdx) => 
 									<React.Fragment>
 										<div key={`${idx}-${jdx}`} className="eventSpan" style={{ ...formatting[jdx], zIndex: jdx }}>
-											{item.path}
-											-
-											{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-											-
-											{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+											<button className="relButton" onClick={() => {
+													if (item.info) {
+														setShowForm({ _id: item._id }); // click event case
+													} else {
+														createCompositeFromRecur(item);
+														setShowForm({ _id: 'new' }); // click recur case
+													}
+												}}>
+												{item.path.split('/')[item.path.split('/').length - 1]}
+											</button>
+											<p className="sep">
+												{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+												-
+												{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+											</p>
 										</div>
 									</React.Fragment>
 								)}
-								{/*[...events, ...recurs]
-									.filter(item => (
-										timeDiff(normDate(item.startStamp), date).days === 0
-										|| timeDiff(normDate(item.endStamp), date).days === 0
-									))
-									.sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp))
-									.map(item => (
-										<div className="formRow" key={item.id}>
-											<p className="sep">
-												{new Date(item.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
-												-
-												{new Date(item.endStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
-											</p>
-											<button className="relButton" onClick={() => {
-												if (item.info) {
-													setShowForm({ _id: item._id }); // click event case
-												} else {
-													createCompositeFromRecur(item);
-													setShowForm({ _id: 'new' }); // click recur case
-												}
-											}}>{item.path}</button>
-										</div>
-									))
-								*/}
 								<FiPlus className="createButton" onClick={() => {
 									reduceComposite({ type: 'reset' });
 									const clicked = new Date(date);
