@@ -589,6 +589,28 @@ textarea.formRow {
 	font-size: 1rem;
 }
 
+.hourSpan {
+	display: flex;
+	flex-direction: row;
+	box-sizing: border-box;
+	position: absolute;
+	width: 100%;
+	padding-right: 0.5rem;
+	flex-wrap: none;
+}
+
+.hourLine {
+	transform: translateY(50%);
+	flex-grow: 1;
+	border-top: 1px solid var(--border2);
+}
+
+.eventSpan {
+	position: absolute;
+	border-left: 2px solid var(--border2);
+	text-wrap: none;
+}
+
 .dayContentLarge,
 .dayContentSmall {
 	position: relative;

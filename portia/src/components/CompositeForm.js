@@ -1,6 +1,6 @@
 // components/CompositeForm.js
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
 	FiX,
 	FiCalendar,
@@ -10,7 +10,8 @@ import {
 	FiSave,
 	FiCheckCircle,
 	FiCheck,
-	FiEdit
+	FiEdit,
+	FiUpload
 } from 'react-icons/fi';
 import { validateForm, validateEvent, validateSchedule } from '../helpers/InputValidation';
 import {
@@ -513,9 +514,10 @@ const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEn
 	);
 }
 
-export const CompositeForm = ({ composite, reduceComposite, upsertComposite, setShowForm }) => {
+export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
 	const { form, event, schedules, dirty, errors } = composite;
+	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]);
 	const [editSchedule, setEditSchedule] = useState(null);
 	const schedule = editSchedule !== null ? schedules[editSchedule] : null;
 	const [edit, setEdit] = useState(false);
@@ -543,11 +545,23 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	//useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
+
+	// Handle dynamic form loading
+	useEffect(() => {
+		console.log(`Finding suggested paths with:`, form.path);
+		console.log('available paths:', allForms.map(f => f.path));
+		const paths = allForms.map(f => f.path)
+			.filter(p => p.startsWith(form.path))
+			//.sort((a, b) => a.localeCompare(b))
+			.map(p => ({ display: p, value: p }))
+		console.log('suggested paths:', paths);
+		setSuggPaths(paths);
+	}, [form.path]);
 
 	// Reset to last committed state
 	const handleRevertSchedule = () => {
@@ -645,21 +659,33 @@ export const CompositeForm = ({ composite, reduceComposite, upsertComposite, set
 
 			{/** PATH */}
 			<div className="formRow">
-				<div id="path" className={errors?.event?.path?.err ? "formCell erred" : "formCell"}>
+				<div id="path" className={errors?.form?.path?.err ? "formCell erred" : "formCell"}>
 					<p className="sep">Path</p>
-					<input
-						placeholder="work/projects/..."
-						value={form.path || ''}
-						onChange={e => {
-							changeField(['form', 'path'], e.target.value);
-							changeField(['event', 'path'], e.target.value);
+					<DropSelect
+						options={suggPaths}
+						value={{ display: form.path, value: form.path }}
+						setter={newPath => {
+							changeField(['form', 'path'], newPath);
+							changeField(['event', 'path'], newPath);
 							for (let ctr = 0; ctr < schedules.length; ctr++) {
-								changeField(['schedules', ctr, 'path'], e.target.value);
+								changeField(['schedules', ctr, 'path'], newPath);
 							}
 						}}
+						allowType={true}
+						realtimeUpdate={true}
+						errorInfo={{ errID: "path", err: errors?.form?.path?.err }}
 					/>
-					<ErrorInfoButton errID={"path"} err={errors?.event?.path?.err} />
-					<FiCheck className="relButton"/>
+					<ErrorInfoButton errID={"path"} err={errors?.form?.path?.err} />
+					{allForms.some(f => f.path === form.path) ?
+						<FiUpload className="relButton" 
+							onClick={() => {
+								const matchedSchedules = allSchedules.filter(s => s.path === form.path);
+								console.log('matchedSchedules', matchedSchedules);
+								reduceComposite({ type: 'set', form: allForms.find(f => f.path === form.path), schedules: matchedSchedules });
+							}}
+						/>
+						: <FiUpload className="relButton selected" />
+					}
 				</div>
 			</div>
 

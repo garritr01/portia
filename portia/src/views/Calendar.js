@@ -21,6 +21,7 @@ import {
 	updateComposite,
 } from '../helpers/HandleComposite';
 import { useSwipe } from '../helpers/DynamicView';
+import { getDummyStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
 import { Floater } from '../components/Portal';
@@ -107,8 +108,8 @@ export const DayView = ({
 	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm);
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
-	//useEffect(() => console.log('schedules', schedules), [schedules]);
-	useEffect(() => console.log('recurs', recurs), [recurs]);
+	useEffect(() => console.log('schedules', schedules), [schedules]);
+	//useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
 	const recursMemo = useMemo(() => [ ...recurs ],[recurs]);
@@ -300,59 +301,147 @@ export const DayView = ({
 				</div>
 			}
 			<div className="dayView">
-				{days.map((date, idx) => (
-					<div key={idx} className={idx === 2 ? 'dayCellLarge' : 'dayCellSmall'}>
-						<div
-							className={idx === 2 ? 'dayTitleLarge' : 'dayTitleSmall'}
-							onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
-							>
-							<span>{date.toLocaleDateString('default', { weekday: 'short' })}</span>
-							{smallScreen ?
-								<span>{date.toLocaleDateString('default', { month: 'short', day: 'numeric' })}</span>
-								: <span>{date.toLocaleDateString('default', { day: 'numeric' })}</span>
-							}
-						</div>
-						<div className={idx === 2 ? 'dayContentLarge' : 'dayContentSmall'}>
-							{[...events, ...recurs]
-								.filter(item => (
-									timeDiff(normDate(item.startStamp), date).days === 0
-									|| timeDiff(normDate(item.endStamp), date).days === 0
-								))
-								.sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp))
-								.map(item => (
-									<div className="formRow" key={item.id}>
-										<button className="relButton" onClick={() => {
-											if (item.info) {
-												setShowForm({ _id: item._id }); // click event case
-											} else {
-												createCompositeFromRecur(item);
-												setShowForm({ _id: 'new' }); // click recur case
-											}
-										}}>{item.path}</button>
-										<p className="sep">
-											{new Date(item.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
-											-
-											{new Date(item.endStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
-										</p>
+				{days.map((date, idx) => {
+					const daysEvents = [ ...events, ...recurs ]
+						.filter(item => 
+							(timeDiff(normDate(item.startStamp), date).days === 0)
+							|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
+						).sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp));
+
+					const hourHeight = parseFloat(getDummyStyle('0:00', 'div', ['height']).height);
+					const titleHeight = parseFloat(getDummyStyle('1', 'div eventSpan', ['height']).height);
+
+					// Accumulate the number of events in each hour
+					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
+					const hourMembers = Array.from({ length: 24 }, () => []);
+					for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
+						const start = new Date(e.startStamp);
+						const hour = start.getHours();
+						hourMembers[hour].push(start);
+					}
+
+					// Accumulate necessary formatting info for each hour label
+					let prevMemberHeight = overlapMembers.length * titleHeight;
+					const hourFormatting = [{ top: prevMemberHeight }];
+					for (let hr = 0; hr < 24; hr++) {
+						const prevHrHeight = (hr + 1) * hourHeight;
+						prevMemberHeight += hourMembers[hr].length * titleHeight;
+						hourFormatting.push({ top: prevHrHeight + prevMemberHeight });
+					}
+
+					if (date.getDate() === 20) {console.log(hourFormatting)}
+					
+					// Accumulate the necessary formatting info for each event/recur
+					const formatting = [];
+					let potOverlaps = [];
+					for (const item of daysEvents) {
+						const start = new Date(item.startStamp);
+						const end = new Date(item.endStamp);
+						
+						const overlapping = potOverlaps.some(e => e > start);
+						const indents = overlapping ? potOverlaps.length : 0;
+						if (!overlapping) { potOverlaps = [] }
+						potOverlaps.push(end);
+
+						const hourSkipsStart = (start < date) ? 0
+							: start.getHours() + 1;
+						const titleSkipsStart = (start < date) ? overlapMembers.filter(t => new Date(t.startStamp) < start).length
+							:	(
+								overlapMembers.length
+								+ hourMembers.slice(0, start.getHours()).reduce((sum, t) => sum + t.length, 0)
+								+ hourMembers[start.getHours()].filter(t => t < start).length
+							)
+						//console.log(item.path, hourSkipsStart);
+						const hourSkipsEnd = (end > addTime(date, { days: 1 })) ? 24
+							: end.getHours() - date.getHours() + 1/2;
+						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, times) => sum + times.length, 0)
+						const endHourTitleSkips = hourMembers[end.getHours()].filter(t => t < end).length;
+
+						const left = 8 * (indents + 1);
+						const top = hourHeight * hourSkipsStart
+							+ titleHeight * titleSkipsStart; // Height of events in previous hours
+						const bottom = hourHeight * hourSkipsEnd // Height of preceding hour labels
+							+ titleHeight * titleSkipsEnd // Height of events in previous hours
+							+ (end.getMinutes() / 60) * (titleHeight * endHourTitleSkips + hourHeight); // min/60 * size of end hour block
+						//console.log((end.getMinutes() / 60), titleHeight, hourHeight, hourSkipsEnd, titleSkipsEnd, endHourTitleSkips, bottom);
+						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
+						formatting.push({ left: left+'px', top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px` });
+					}
+
+					return (
+						<div key={idx} className={idx === 2 ? 'dayCellLarge' : 'dayCellSmall'}>
+							<div
+								className={idx === 2 ? 'dayTitleLarge' : 'dayTitleSmall'}
+								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
+								>
+								<span>{date.toLocaleDateString('default', { weekday: 'short' })}</span>
+								{smallScreen ?
+									<span>{date.toLocaleDateString('default', { month: 'short', day: 'numeric' })}</span>
+									: <span>{date.toLocaleDateString('default', { day: 'numeric' })}</span>
+								}
+							</div>
+							<div className={idx === 2 ? 'dayContentLarge' : 'dayContentSmall'}>
+								{hourFormatting.map((fmt, hr) =>
+									<div className='hourSpan' style={fmt}>
+										<div className='hourLine'/>
+										<div>{hr}:00</div>
 									</div>
-								))
-							}
-							<FiPlus className="createButton" onClick={() => {
-								reduceComposite({ type: 'reset' });
-								const clicked = new Date(date);
-								const current = new Date();
-								clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
-								reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
-								reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
-								setShowForm({ _id: 'new' });
-							}}/>
+								)}
+								{daysEvents.map((item, jdx) => 
+									<React.Fragment>
+										<div key={`${idx}-${jdx}`} className="eventSpan" style={{ ...formatting[jdx], zIndex: jdx }}>
+											{item.path}
+											-
+											{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+											-
+											{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+										</div>
+									</React.Fragment>
+								)}
+								{/*[...events, ...recurs]
+									.filter(item => (
+										timeDiff(normDate(item.startStamp), date).days === 0
+										|| timeDiff(normDate(item.endStamp), date).days === 0
+									))
+									.sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp))
+									.map(item => (
+										<div className="formRow" key={item.id}>
+											<p className="sep">
+												{new Date(item.startStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
+												-
+												{new Date(item.endStamp).toLocaleString('default', {hour: "2-digit", minute: "2-digit", hour12: false})}
+											</p>
+											<button className="relButton" onClick={() => {
+												if (item.info) {
+													setShowForm({ _id: item._id }); // click event case
+												} else {
+													createCompositeFromRecur(item);
+													setShowForm({ _id: 'new' }); // click recur case
+												}
+											}}>{item.path}</button>
+										</div>
+									))
+								*/}
+								<FiPlus className="createButton" onClick={() => {
+									reduceComposite({ type: 'reset' });
+									const clicked = new Date(date);
+									const current = new Date();
+									clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
+									reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
+									reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
+									setShowForm({ _id: 'new' });
+								}}/>
+							</div>
 						</div>
-					</div>
-				))}
+					)
+				})}
 				{showForm._id &&
 					<Floater>
 						<CompositeForm
-							composite={composite} reduceComposite={reduceComposite}
+							allForms={forms}
+							allSchedules={schedules}
+							composite={composite} 
+							reduceComposite={reduceComposite}
 							setShowForm={setShowForm}
 							upsertComposite={upsertComposite}
 						/>

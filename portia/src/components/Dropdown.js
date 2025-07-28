@@ -6,12 +6,14 @@ import { measureTextWidth } from '../helpers/Measure';
 import { ErrorInfoButton } from './Notifications';
 
 /** Finite pseudo-rolling drop select */
-export const DropSelect = ({ options = [], value, setter, allowType = false, numericOnly = false, errorInfo }) => {
+export const DropSelect = ({ options = [], value, setter, allowType = false, numericOnly = false, realtimeUpdate = false, errorInfo }) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 
 	// Repeat until 20 options present, using at least 4 copies
-	const repeats = options.length >= 5 ? 4 : Math.ceil(20 / options.length);
+	const repeats = options.length === 0 ? 20
+		: options.length >= 5 ? 4 
+		: Math.ceil(20 / options.length);
 	// Defines starting index and number of copies to bounce (4 -> 1), (5, 6 -> 2)
 	const middleIdx = Math.ceil(repeats / 2) - 1;
 	const paddedOptions = Array(repeats).fill(options).flat();
@@ -39,9 +41,9 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 	useEffect(() => {
 		if (!headRef.current) { return }
 		const style = window.getComputedStyle(headRef.current);
-		const maxWidth = options.reduce((max, opt) => Math.max(max, measureTextWidth(opt.display, style)), 0);
+		const maxWidth = [ ...options, value].reduce((max, opt) => Math.max(max, measureTextWidth(opt.display, style)), 0);
 		setWidth(maxWidth);
-	}, [options]);
+	}, [options, value]);
 
 	// start on selected value
 	useEffect(() => {
@@ -87,6 +89,7 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 			setter={setter}
 			options={paddedOptions}
 			allowType={allowType && !smallScreen}
+			realtimeUpdate={realtimeUpdate}
 			rVal={rVal}
 			setRVal={setRVal}
 			headRef={headRef}
@@ -102,7 +105,7 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 }
 
 /** Infinite numerical drop select */
-export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, setter, allowType = false, errorInfo }) => {
+export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, setter, allowType = false, realtimeUpdate = false, errorInfo }) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 	// NOTE - .value is just so I can reuse the same DropView
@@ -181,6 +184,7 @@ export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, set
 			setter={setter}
 			options={options}
 			allowType={allowType && !smallScreen}
+			realtimeUpdate={realtimeUpdate}
 			rVal={rVal}
 			setRVal={setRVal}
 			headRef={headRef}
@@ -220,7 +224,7 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 }
 
 /** Render the scrollable dropdown menu used by the DropSelects */
-const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width }) => {
+const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width }) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { goNext } = useKeyNav() || {};
 
@@ -281,6 +285,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 						onChange={(e) => {
 							const val = numericOnly ? e.target.value.replace(/\D+/g, '') : e.target.value;
 							setRVal({ display: val, value: val })
+							if (realtimeUpdate) { setter(val) }
 						}}
 						onFocus={(e) => e.target.select()} // Highlight on focus
 						onBlur={() => setter(rVal.value)}
@@ -308,16 +313,12 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 						ref={listRef}
 						onScroll={(e) => scrollHandler(e.target)}
 						style={{ top: allowType && '100%' }}
-					>
+						>
 						{options.map((option, idx) => (
 							<div
 								key={idx}
 								className={`droption ${option.value === rVal.value ? "selected" : ""}`}
-								onClick={(e) => {
-									handleClose(option);
-									// Wait for DOM update before going to next
-									setTimeout(() => { goNext(e) }, 0);
-								}}>
+								onClick={(e) => handleClose(option)}>
 								{option.display}
 							</div>
 						))}
