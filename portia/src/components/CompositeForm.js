@@ -555,12 +555,25 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	useEffect(() => {
 		console.log(`Finding suggested paths with:`, form.path);
 		console.log('available paths:', allForms.map(f => f.path));
-		const paths = allForms.map(f => f.path)
+		const formPathLength = form.path.split('/').length;
+		const filteredPaths = allForms.map(f => f.path)
 			.filter(p => p.startsWith(form.path))
-			//.sort((a, b) => a.localeCompare(b))
-			.map(p => ({ display: p, value: p }))
-		console.log('suggested paths:', paths);
-		setSuggPaths(paths);
+			.map(p => {
+				const pSplit = p.split('/');
+				const pSliced = pSplit.slice(0, formPathLength);
+				const pTrimmed = pSliced.join('/');
+				console.log(pTrimmed, form.path);
+				if (pTrimmed === form.path && pSplit.length > formPathLength) {
+					return pSplit.slice(0, formPathLength + 1).join('/');
+				} else {
+					return pTrimmed;
+				}
+			});
+		const uniquePaths = Array.from(new Set(filteredPaths))
+			.sort((a, b) => a.localeCompare(b))
+			.map(p => ({ display: p, value: p }));
+		console.log('suggested paths:', uniquePaths);
+		setSuggPaths(uniquePaths);
 	}, [form.path]);
 
 	// Reset to last committed state
