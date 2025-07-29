@@ -21,7 +21,7 @@ import {
 	updateComposite,
 } from '../helpers/HandleComposite';
 import { useSwipe } from '../helpers/DynamicView';
-import { getDummyStyle } from '../helpers/Measure';
+import { getDummyStyle, getDummyWithChildrenStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
 import { Floater } from '../components/Portal';
@@ -108,7 +108,7 @@ export const DayView = ({
 	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm);
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
-	useEffect(() => console.log('schedules', schedules), [schedules]);
+	//useEffect(() => console.log('schedules', schedules), [schedules]);
 	//useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
@@ -308,8 +308,27 @@ export const DayView = ({
 							|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
 						).sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp));
 
-					const hourHeight = parseFloat(getDummyStyle('0:00', 'div', ['height']).height);
-					const titleHeight = parseFloat(getDummyStyle('1', 'div eventSpan', ['height']).height);
+					const hourSpanSnapshot = getDummyWithChildrenStyle(
+						<div className='hourSpan' id="hourSpan_target">
+							<div className='hourLine'/>
+							<div>0:00</div>
+						</div>, 
+						['height']
+					);
+					const hourHeight = Math.ceil(hourSpanSnapshot?.hourSpan?.height);
+					const titleStyle = getDummyWithChildrenStyle(
+						<div className="eventSpan formRow" id="eventSpan_target">
+							<button className="relButton">
+								Anything
+							</button>
+							<p className="sep">
+								Anything
+							</p>
+						</div>,
+						['height', 'padding-top', 'padding-bottom']
+					);
+					const titleHeight = titleStyle?.eventSpan?.height;
+					const titleHeightPadded = Math.ceil(titleStyle?.eventSpan?.height) + Math.ceil(titleStyle?.eventSpan?.paddingTop) + Math.ceil(titleStyle?.eventSpan?.paddingBottom);
 
 					// Accumulate the number of events in each hour
 					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
@@ -321,12 +340,12 @@ export const DayView = ({
 					}
 
 					// Accumulate necessary formatting info for each hour label
-					let prevMemberHeight = overlapMembers.length * titleHeight;
+					let prevMemberHeight = overlapMembers.length * titleHeightPadded;
 					const hourFormatting = [{ top: prevMemberHeight }];
 					for (let hr = 0; hr < 24; hr++) {
 						const prevHrHeight = (hr + 1) * hourHeight;
-						prevMemberHeight += hourMembers[hr].length * titleHeight;
-						hourFormatting.push({ top: prevHrHeight + prevMemberHeight });
+						prevMemberHeight += hourMembers[hr].length * titleHeightPadded;
+						hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
 					}
 
 					if (date.getDate() === 20) {console.log(hourFormatting)}
@@ -353,17 +372,17 @@ export const DayView = ({
 							)
 						//console.log(item.path, hourSkipsStart);
 						const hourSkipsEnd = (end > addTime(date, { days: 1 })) ? 24
-							: end.getHours() - date.getHours() + 1/2;
+							: end.getHours() - date.getHours();
 						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, times) => sum + times.length, 0)
 						const endHourTitleSkips = hourMembers[end.getHours()].filter(t => t < end).length;
 
 						const left = 8 * (indents + 1);
 						const top = hourHeight * hourSkipsStart
-							+ titleHeight * titleSkipsStart; // Height of events in previous hours
+							+ titleHeightPadded * titleSkipsStart; // Height of events in previous hours
 						const bottom = hourHeight * hourSkipsEnd // Height of preceding hour labels
-							+ titleHeight * titleSkipsEnd // Height of events in previous hours
-							+ (end.getMinutes() / 60) * (titleHeight * endHourTitleSkips + hourHeight); // min/60 * size of end hour block
-						//console.log((end.getMinutes() / 60), titleHeight, hourHeight, hourSkipsEnd, titleSkipsEnd, endHourTitleSkips, bottom);
+							+ titleHeightPadded * titleSkipsEnd // Height of events in previous hours
+							+ (end.getMinutes() / 60) * (titleHeightPadded * endHourTitleSkips + hourHeight); // min/60 * size of end hour content
+						console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
 						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
 						formatting.push({ left: left+'px', top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px` });
 					}
@@ -389,7 +408,7 @@ export const DayView = ({
 								)}
 								{daysEvents.map((item, jdx) => 
 									<React.Fragment>
-										<div key={`${idx}-${jdx}`} className="eventSpan" style={{ ...formatting[jdx], zIndex: jdx }}>
+										<div key={`${idx}-${jdx}`} className="eventSpan formRow" style={{ ...formatting[jdx], zIndex: jdx }}>
 											<button className="relButton" onClick={() => {
 													if (item.info) {
 														setShowForm({ _id: item._id }); // click event case

@@ -545,13 +545,13 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	useEffect(() => console.log("navBlock:\n", form), [form]);
+	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
-	// Handle dynamic form loading
+	// Handle dynamic path for form loading
 	useEffect(() => {
 		console.log(`Finding suggested paths with:`, form.path);
 		console.log('available paths:', allForms.map(f => f.path));
@@ -575,6 +575,26 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		console.log('suggested paths:', uniquePaths);
 		setSuggPaths(uniquePaths);
 	}, [form.path]);
+
+	// Update event info for filling out based on form info without removing event content already present
+	const updateEventUI = (updatedFormInfo) => {
+		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
+			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
+			if (prevEvent) {
+				return { ...f, content: prevEvent.content };
+			} else {
+				const emptyContent = (f.type === 'input' || f.type === 'text') ? [''] : null;
+				return { ...f, content: emptyContent }
+			}
+		});
+		reduceComposite({
+			type: 'update',
+			event: {
+				...event,
+				info: updatedEventInfo,
+			}
+		})
+	};
 
 	// Reset to last committed state
 	const handleRevertSchedule = () => {
@@ -611,26 +631,6 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		};
 		setEdit(false);
 		updateEventUI(form.info);
-	};
-
-	// Update event info for filling out based on form info without removing event content already present
-	const updateEventUI = (updatedFormInfo) => {
-		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
-			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
-			if (prevEvent) {
-				return { ...f, content: prevEvent.content };
-			} else {
-				const emptyContent = (f.type === 'input' || f.type === 'text') ? [''] : null;
-				return { ...f, content: emptyContent }
-			}
-		});
-		reduceComposite({
-			type: 'update',
-			event: {
-				...event,
-				info: updatedEventInfo,
-			}
-		})
 	};
 
 	// Allows saving w & w/o event
@@ -693,8 +693,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						<FiUpload className="relButton" 
 							onClick={() => {
 								const matchedSchedules = allSchedules.filter(s => s.path === form.path);
-								console.log('matchedSchedules', matchedSchedules);
-								reduceComposite({ type: 'set', form: allForms.find(f => f.path === form.path), schedules: matchedSchedules });
+								const matchedForm = allForms.find(f => f.path === form.path)
+								reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
+								updateEventUI(matchedForm.info);
 							}}
 						/>
 						: <FiUpload className="relButton selected" />

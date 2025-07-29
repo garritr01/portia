@@ -251,9 +251,7 @@ export const KeyNavProvider = ({ children }) => {
 			if (e.shiftKey) { goLast(e) }
 			else { goNext(e) }
 		} else if (e.ctrlKey) {
-			if (e.key === "ArrowLeft") { goLast(e) }
-			else if (e.key === "ArrowRight") { goNext(e) }
-			else if (e.key === "ArrowUp") { goUp(e) }
+			if (e.key === "ArrowUp") { goUp(e) }
 			else if (e.key === "ArrowDown") { goDown(e) }
 		} else { return }
 	}, [current, goNext, goLast, goUp, goDown]);
