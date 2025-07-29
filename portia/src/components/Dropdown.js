@@ -6,7 +6,7 @@ import { measureTextWidth } from '../helpers/Measure';
 import { ErrorInfoButton } from './Notifications';
 
 /** Finite pseudo-rolling drop select */
-export const DropSelect = ({ options = [], value, setter, allowType = false, numericOnly = false, realtimeUpdate = false, errorInfo }) => {
+export const DropSelect = ({ options = [], value, setter, allowType = false, numericOnly = false, realtimeUpdate = false, errorInfo, dropHeaderID }) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 
@@ -100,12 +100,13 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 			width={width}
 			numericOnly={numericOnly}
 			errorInfo={errorInfo}
+			dropHeaderID={dropHeaderID}
 		/>
 	);
 }
 
 /** Infinite numerical drop select */
-export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, setter, allowType = false, realtimeUpdate = false, errorInfo }) => {
+export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, setter, allowType = false, realtimeUpdate = false, errorInfo, dropHeaderID }) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 	// NOTE - .value is just so I can reuse the same DropView
@@ -195,6 +196,7 @@ export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, set
 			width={'2.25rem'}
 			numericOnly={true}
 			errorInfo={errorInfo}
+			dropHeaderID={dropHeaderID}
 		/>
 	);
 }
@@ -224,7 +226,7 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 }
 
 /** Render the scrollable dropdown menu used by the DropSelects */
-const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width }) => {
+const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID }) => {
 	const { smallScreen = false } = useScreen() || {};
 
 	const handleArrow = useCallback((e) => {
@@ -275,7 +277,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 	return (
 		<div className="drop">
 
-			<div className={errorInfo?.err ? "erred dropHeader" : "dropHeader"}>
+			<div id={dropHeaderID} className={errorInfo?.err ? "erred dropHeader" : "dropHeader"}>
 
 				{/** Use an input if allowType */}
 				{allowType ?

@@ -4,13 +4,13 @@ import { FiAlertTriangle } from 'react-icons/fi';
 import { getDummyStyle, measureTextWidth } from '../helpers/Measure';
 
 /* Pass element id in on invalid input to flash element red */
-export const invalidInputFlash = (inputId) => {
-	const input = document.getElementById(inputId);
-	if (input) {
-		input.classList.add('invalidFlash');
-		setTimeout(() => {
-			input.classList.remove('invalidFlash');
-		}, 500);
+export const invalidInputFlash = (elementId) => {
+	const element = document.getElementById(elementId);
+	if (element) {
+		element.classList.add('invalidFlash');
+		element.addEventListener('animationend', () => element.classList.remove('invalidFlash'), { once: true });
+	} else {
+		console.warning("No element with id: ", elementId);
 	}
 }
 

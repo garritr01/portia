@@ -30,7 +30,6 @@ import {
 	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
 import { makeEmptySchedule } from '../helpers/HandleComposite';
-import { useDataHandler } from '../helpers/DataHandlers';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
 
@@ -65,26 +64,45 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	const commitPart = (unit, newVal) => {
 		try {
 			const upDate = calcFriendlyDateTime(unit, date, { ...rawParts, [unit]: newVal });
+			const validUpDate = !isNaN(upDate.getTime())
+			if (!validUpDate) {
+				setRawParts(editFriendlyDateTime(date));
+			}
 			if (objKey === 'event') {
 				// 'event' case
-				console.log([objKey, fieldKey], upDate);
-				reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
-				// Handle syncing of start and end datetimes
+				//console.log([objKey, fieldKey], upDate);
+				if (validUpDate) {
+					reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
+					// Handle syncing of start and end datetimes
+					if (syncStartAndEnd.eventStart && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, 'startStamp'], value: upDate }) }
+					if (syncStartAndEnd.eventEnd && fieldKey === 'startStamp') { reduceComposite({ type: 'drill', path: [objKey, 'endStamp'], value: upDate }) }
+				} else {
+					invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
+				}
+				// Handle ending sync
 				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventEnd: false })) }
 				if (fieldKey === 'startStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventStart: false })) }
-				if (syncStartAndEnd.eventStart && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, 'startStamp'], value: upDate }) }
-				if (syncStartAndEnd.eventEnd && fieldKey === 'startStamp') { reduceComposite({ type: 'drill', path: [objKey, 'endStamp'], value: upDate }) }
 			} else if (objKey === 'schedules') {
 				// 'schedules' case
-				console.log([objKey, schedIdx, fieldKey], upDate);
-				reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
-				// Handle syncing of start and end datetimes
+				//console.log([objKey, schedIdx, fieldKey], upDate);
+				if (validUpDate) {
+					reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
+					// Handle syncing of datetimes
+					if (syncStartAndEnd.scheduleEnd && fieldKey === 'startStamp') {
+						reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'endStamp'], value: upDate });
+						if (syncStartAndEnd.scheduleUntil) { 
+							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate });
+						}
+					} 
+					if (syncStartAndEnd.scheduleUntil && fieldKey === 'endStamp') { 
+						reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate });
+					}
+				} else {
+					invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
+				}
+				// Handle ending sync
 				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: false })) } 
 				if (fieldKey === 'until') { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) } 
-				if (syncStartAndEnd.scheduleEnd && fieldKey === 'startStamp') {
-					reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'endStamp'], value: upDate });
-					if (syncStartAndEnd.scheduleUntil) { reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate }) }
-				} if (syncStartAndEnd.scheduleUntil && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate }) }
 			} else {
 				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
 			}
@@ -119,12 +137,14 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 					<div className="navCell">
 						{unit === 'year' ?
 							<InfDropSelect
+								dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
 								value={{ display: String(date.getFullYear()), value: date.getFullYear() }}
 								setter={(newVal) => commitPart(unit, newVal)}
 								allowType={true}
 							/>
 							:
 							<DropSelect
+								dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
 								options={createOptions(unit)}
 								value={createDefaults(unit)}
 								setter={(newVal) => commitPart(unit, newVal)}
@@ -168,6 +188,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 				<p className="sep">Period</p>
 				<div id="period" className="navCell">
 					<DropSelect
+						dropHeaderID={"periodInput"}
 						options={periodOptions}
 						value={periodOptions.find((option) => schedule.period === option.value)}
 						setter={(newVal) => reduceComposite({
@@ -187,6 +208,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 						<p className="sep">Every</p>
 						<div id="interval" className={errors?.interval?.err ? "navCell errCell" : "navCell"}>
 							<InfDropSelect
+								dropHeaderID={"intervalInput"}
 								min={1}
 								value={{ display: String(schedule.interval), value: schedule.interval }} // Just so I can use the same View for both DropSelects
 								setter={(newVal) => reduceComposite({
@@ -415,7 +437,7 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 	);
 }
 
-const EventForm = ({ event, errors, changeField, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
+const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 
 	const addInput = (idx) => {
 		if (event.info[idx].type !== 'input') {
@@ -675,6 +697,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				<div id="path" className={errors?.form?.path?.err ? "navCell erred" : "navCell"}>
 					<p className="sep">Path</p>
 					<DropSelect
+						dropHeaderID={"pathInput"}
 						options={suggPaths}
 						value={{ display: form.path, value: form.path }}
 						setter={newPath => {
@@ -711,7 +734,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						setEditSchedule={setEditSchedule}
 						schedule={editSchedule !== null ? schedules[editSchedule] : null}
 						schedules={schedules}
-						errors={errors.schedule}
+						errors={errors.schedules}
 						reduceComposite={reduceComposite}
 						syncStartAndEnd={syncStartAndEnd}
 						setSyncStartAndEnd={setSyncStartAndEnd}

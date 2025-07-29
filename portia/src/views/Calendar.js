@@ -382,7 +382,7 @@ export const DayView = ({
 						const bottom = hourHeight * hourSkipsEnd // Height of preceding hour labels
 							+ titleHeightPadded * titleSkipsEnd // Height of events in previous hours
 							+ (end.getMinutes() / 60) * (titleHeightPadded * endHourTitleSkips + hourHeight); // min/60 * size of end hour content
-						console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
+						//console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
 						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
 						formatting.push({ left: left+'px', top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px` });
 					}

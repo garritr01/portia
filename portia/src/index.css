@@ -904,9 +904,25 @@ textarea.navRow {
 }
 
 @keyframes flashRed {
-	0% {background-color: rgba(255, 0, 0, 0.2);}
-	50% {background-color: rgba(255, 0, 0, 0.4);}
-	100% {background-color: rgba(255, 0, 0, 0.2);}
+	0% { 
+		background-color: #e0211b;; 
+	}
+	25% {
+		background-color: #e25853;
+	}
+	50% {
+		background-color: #e4908d;
+	}
+	75% {
+		background-color: #dfc1c0;
+	}
+	100% {
+		background-color: inherit;
+	}
+}
+
+.invalidFlash {
+	animation: flashRed 2s ease-in-out;
 }
 
 /* #endregion ---- NOTIFICATIONS ---- */
