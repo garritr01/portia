@@ -226,7 +226,6 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 /** Render the scrollable dropdown menu used by the DropSelects */
 const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width }) => {
 	const { smallScreen = false } = useScreen() || {};
-	const { goNext } = useKeyNav() || {};
 
 	const handleArrow = useCallback((e) => {
 		if (!isOpen || !listRef?.current || e.ctrlKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }

@@ -819,8 +819,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						handleRevertForm(); 
 					}
 					}}/>
-				<FiCheckCircle className="submitButton" onClick={() => handleUpsert(false)}/>
-				<FiSave className="submitButton" onClick={() => handleUpsert(true)}/>
+				{/** Blur so value is committed on save */}
+				<FiCheckCircle className="submitButton" onMouseDown={() => document.activeElement.blur()} onClick={() => handleUpsert(false)}/>
+				<FiSave className="submitButton" onMouseDown={() => document.activeElement.blur()} onClick={() => handleUpsert(true)}/>
 				<FiX className="submitButton add" onClick={() => setShowForm({ _id: null })}/>
 			</div>
 

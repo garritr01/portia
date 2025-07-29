@@ -1,7 +1,6 @@
 # Usage Notes
 ## Bugs
 - Fix whatever is breaking weekly scheduling
-- Make sure last input is considered on save
 - Guard against invalid values in time entry (going to next tries to calculate a date and can't)
 	- Include an invalidFlash
 ## UX Improvements
