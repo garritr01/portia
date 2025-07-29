@@ -1,10 +1,8 @@
 # Usage Notes
 ## Bugs
-- Fix whatever is breaking weekly scheduling
-- Guard against invalid values in time entry (going to next tries to calculate a date and can't)
-	- Include an invalidFlash
+- 
 ## UX Improvements
-- Delineate between scheduled events and recorded events
+- Delineate between scheduled events and recorded events (remove completed scheduled events based on scheduleID and scheduleStart)
 - Color scheme by leading directory
 - Add suggestions for inputs
 - Add autofilling with some key for path
@@ -14,3 +12,6 @@
 - Allow a 'none' for end date such that it appears on calendar (like clocking in)
 - Calendar view event display indent can only reset to 0, allow to reset to lesser indent.
 - Calendar view event length display doesn't quite seem to be the right height.
+- Allow scroll within portal
+- Allow text box expansion
+- Exact same startStamp leads to overlap

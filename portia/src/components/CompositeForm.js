@@ -575,8 +575,8 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	// Handle dynamic path for form loading
 	useEffect(() => {
-		console.log(`Finding suggested paths with:`, form.path);
-		console.log('available paths:', allForms.map(f => f.path));
+		//console.log(`Finding suggested paths with:`, form.path);
+		//console.log('available paths:', allForms.map(f => f.path));
 		const formPathLength = form.path.split('/').length;
 		const filteredPaths = allForms.map(f => f.path)
 			.filter(p => p.startsWith(form.path))
@@ -594,7 +594,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		const uniquePaths = Array.from(new Set(filteredPaths))
 			.sort((a, b) => a.localeCompare(b))
 			.map(p => ({ display: p, value: p }));
-		console.log('suggested paths:', uniquePaths);
+		//console.log('suggested paths:', uniquePaths);
 		setSuggPaths(uniquePaths);
 	}, [form.path]);
 

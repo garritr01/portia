@@ -347,11 +347,12 @@ export const objToRRule = (obj) => {
 		until: obj.until
 	};
 	if (obj.period === 'weekly') {
-		options.byweekday = obj.spec.map(i => weekday2rRule[i]);
+		console.log('weekly objToRRule', obj);
+		options.byweekday = weekday2rRule[getDayOfWeek(new Date(obj.startStamp), false)];
 	} else if (obj.period === 'monthly') {
-		options.bymonthday = obj.spec;
+		options.bymonthday = new Date(obj.startStamp).getDate();
 	} else if (obj.period === 'yearly') {
-		options.bymonth = obj.spec;
+		options.bymonth = new Date(obj.startStamp).getMonth() + 1;
 	}
 
 	return new RRule(options);

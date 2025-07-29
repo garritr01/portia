@@ -99,9 +99,6 @@ export const useCalendarDataHandler = (startDate, endDate, setShowForm) => {
 	const upsertComposite = useCallback(
 		async (composite, dirty) => {
 
-			console.log('composite', composite);
-			console.log('dirty', dirty);
-
 			// normalize your payload
 			const { form, event, schedules } = composite;
 			const payload = {
