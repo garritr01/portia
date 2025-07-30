@@ -329,8 +329,21 @@ body,
 }
 
 .eventSpan.formRow,
-.eventSpan.navRow {
+.eventSpan.navRow,
+.recurSpan.formRow,
+.recurSpan.navRow {
 	align-items: flex-start;
+	gap: 0.25rem;
+}
+
+.eventSpan.formRow,
+.eventSpan.navRow {
+	justify-content: flex-start;
+}
+
+.recurSpan.formRow,
+.recurSpan.navRow {
+	justify-content: flex-end;
 }
 
 .formCell input.time,
@@ -609,8 +622,7 @@ textarea.navRow {
 	flex-direction: row;
 	box-sizing: border-box;
 	position: absolute;
-	width: 100%;
-	padding-right: 0.5rem;
+	width: calc(100% - 0.5rem);
 	white-space: nowrap;
 }
 
@@ -621,8 +633,16 @@ textarea.navRow {
 }
 
 .eventSpan {
+	box-sizing: border-box;
 	position: absolute;
 	border-left: 2px solid var(--border2);
+	white-space: nowrap;
+}
+
+.recurSpan {
+	box-sizing: border-box;
+	position: absolute;
+	border-right: 2px solid var(--border2);
 	white-space: nowrap;
 }
 

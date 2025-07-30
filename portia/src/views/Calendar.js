@@ -233,18 +233,19 @@ export const DayView = ({
 	};
 
 	const createCompositeFromRecur = (recur) => {
-		const newScheds = schedules.filter(s => s.path === recur.path);
+		const { isRecur, ...recurClean } = recur;
+		const newScheds = schedules.filter(s => s.path === recurClean.path);
 		let newForm = forms.find(f => f._id === newScheds[0].formID);
-		if (!newForm.includeStart && new Date(recur.startStamp).getTime() !== new Date(recur.endStamp).getTime()) {
+		if (!newForm.includeStart && new Date(recurClean.startStamp).getTime() !== new Date(recurClean.endStamp).getTime()) {
 			newForm = { ...newForm, includeStart: true }
 		}
 		let newEvent = { 
 			...makeEmptyEvent(), 
-			...recur,
+			...recurClean,
 			_id: null,
 			formID: newForm._id,
-			scheduleID: recur._id,
-			scheduleStart: recur.startStamp,
+			scheduleID: recurClean._id,
+			scheduleStart: recurClean.startStamp,
 			info: newForm.info.map(f => ({
 				...f,
 				content: f.type === 'input' || f.type === 'text' ? [''] : null
@@ -302,21 +303,28 @@ export const DayView = ({
 			}
 			<div className="dayView">
 				{days.map((date, idx) => {
-					const daysEvents = [ ...events, ...recurs ]
-						.filter(item => 
-							(timeDiff(normDate(item.startStamp), date).days === 0)
-							|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
-						).sort((a, b) => new Date(a.startStamp) - new Date(b.startStamp));
+					// Filter out resolved schedules
+					const activeRecurs = recurs.filter(r =>!events.some(e => 
+						e.scheduleID === r._id 
+						&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
+					));
+					const daysEvents = [ ...events, ...activeRecurs ].filter(item => 
+						(timeDiff(normDate(item.startStamp), date).days === 0)
+						|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
+					).sort((a, b) => 
+						new Date(a.startStamp) - new Date(b.startStamp)
+					);
 
 					const hourSpanSnapshot = getDummyWithChildrenStyle(
 						<div className='hourSpan' id="hourSpan_target">
 							<div className='hourLine'/>
-							<div>0:00</div>
+							<div id="time_target">00:00</div>
 						</div>, 
-						['height']
+						['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
 					);
-					const hourHeight = Math.ceil(hourSpanSnapshot?.hourSpan?.height);
-					const titleStyle = getDummyWithChildrenStyle(
+					const hourHeight = Math.ceil(hourSpanSnapshot?.hourSpan?.height + hourSpanSnapshot?.hourSpan?.paddingTop + hourSpanSnapshot?.hourSpan?.paddingBottom);
+					const timeWidth = Math.ceil(hourSpanSnapshot?.time?.width + hourSpanSnapshot?.time?.paddingLeft + hourSpanSnapshot?.time?.paddingRight);
+					const eventStyle = getDummyWithChildrenStyle(
 						<div className="eventSpan formRow" id="eventSpan_target">
 							<button className="relButton">
 								Anything
@@ -325,10 +333,21 @@ export const DayView = ({
 								Anything
 							</p>
 						</div>,
-						['height', 'padding-top', 'padding-bottom']
+						['height', 'padding-top', 'padding-bottom', 'padding-right']
 					);
-					const titleHeight = titleStyle?.eventSpan?.height;
-					const titleHeightPadded = Math.ceil(titleStyle?.eventSpan?.height) + Math.ceil(titleStyle?.eventSpan?.paddingTop) + Math.ceil(titleStyle?.eventSpan?.paddingBottom);
+					const recurStyle = getDummyWithChildrenStyle(
+						<div className="recurSpan formRow" id="recurSpan_target">
+							<button className="relButton">
+								Anything
+							</button>
+							<p className="sep">
+								Anything
+							</p>
+						</div>,
+						['height', 'padding-top', 'padding-bottom', 'padding-right']
+					);
+					const titleHeight = eventStyle?.eventSpan?.height;
+					const titleHeightPadded = Math.ceil(eventStyle?.eventSpan?.height) + Math.ceil(eventStyle?.eventSpan?.paddingTop) + Math.ceil(eventStyle?.eventSpan?.paddingBottom);
 
 					// Accumulate the number of events in each hour
 					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
@@ -376,7 +395,6 @@ export const DayView = ({
 						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, times) => sum + times.length, 0)
 						const endHourTitleSkips = hourMembers[end.getHours()].filter(t => t < end).length;
 
-						const left = 8 * (indents + 1);
 						const top = hourHeight * hourSkipsStart
 							+ titleHeightPadded * titleSkipsStart; // Height of events in previous hours
 						const bottom = hourHeight * hourSkipsEnd // Height of preceding hour labels
@@ -384,7 +402,9 @@ export const DayView = ({
 							+ (end.getMinutes() / 60) * (titleHeightPadded * endHourTitleSkips + hourHeight); // min/60 * size of end hour content
 						//console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
 						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
-						formatting.push({ left: left+'px', top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px` });
+
+						const right = item.isRecur ? -(8 * (indents + 1) + eventStyle?.eventSpan?.paddingRight + timeWidth) : 8 * (indents + 1);
+						formatting.push({ top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px`, transform: ('translateX('+right+'px)')});
 					}
 
 					return (
@@ -408,22 +428,34 @@ export const DayView = ({
 								)}
 								{daysEvents.map((item, jdx) => 
 									<React.Fragment>
-										<div key={`${idx}-${jdx}`} className="eventSpan formRow" style={{ ...formatting[jdx], zIndex: jdx }}>
+										<div key={`${idx}-${jdx}`} 
+											className={`${item?.isRecur ? 'recurSpan' : 'eventSpan'} formRow`} 
+											style={{ ...formatting[jdx], zIndex: jdx }}
+											>
+											{item?.isRecur &&
+												<p className="sep">
+													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+													-
+													{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+												</p>
+											}
 											<button className="relButton" onClick={() => {
-													if (item.info) {
-														setShowForm({ _id: item._id }); // click event case
-													} else {
+													if (item.isRecur) {
 														createCompositeFromRecur(item);
 														setShowForm({ _id: 'new' }); // click recur case
+													} else {
+														setShowForm({ _id: item._id }); // click event case
 													}
 												}}>
 												{item.path.split('/')[item.path.split('/').length - 1]}
 											</button>
-											<p className="sep">
-												{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-												-
-												{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-											</p>
+											{!item?.isRecur &&
+												<p className="sep">
+													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+													-
+													{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
+												</p>
+											}
 										</div>
 									</React.Fragment>
 								)}

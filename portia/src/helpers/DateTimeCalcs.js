@@ -394,7 +394,8 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 					_id: sched._id,
 					path: sched.path,
 					startStamp: recur,
-					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp))
+					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),
+					isRecur: true,
 				});
 			});
 		}

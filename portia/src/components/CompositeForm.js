@@ -443,8 +443,6 @@ const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 		if (event.info[idx].type !== 'input') {
 			console.warn("Cannot add input from non-input field");
 			return;
-		} else {
-			console.log("Adding to ", event.info[idx])
 		}
 
 		const contentCopy = [...event.info[idx].content];
