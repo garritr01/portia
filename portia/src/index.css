@@ -328,24 +328,6 @@ body,
 	border: 1px solid var(--border3);
 }
 
-.eventSpan.formRow,
-.eventSpan.navRow,
-.recurSpan.formRow,
-.recurSpan.navRow {
-	align-items: flex-start;
-	gap: 0.25rem;
-}
-
-.eventSpan.formRow,
-.eventSpan.navRow {
-	justify-content: flex-start;
-}
-
-.recurSpan.formRow,
-.recurSpan.navRow {
-	justify-content: flex-end;
-}
-
 .formCell input.time,
 .navCell input.time {
 	width: 1.25rem;
@@ -633,17 +615,34 @@ textarea.navRow {
 }
 
 .eventSpan {
-	box-sizing: border-box;
 	position: absolute;
+	flex-grow: 1;
 	border-left: 2px solid var(--border2);
-	white-space: nowrap;
 }
 
 .recurSpan {
+	position: absolute;
+	flex-grow: 1;
+	border-right: 2px solid var(--border2);
+}
+
+.recurRow, 
+.eventRow {
 	box-sizing: border-box;
 	position: absolute;
-	border-right: 2px solid var(--border2);
+	align-items: flex-start;
 	white-space: nowrap;
+	flex-grow: 1;
+	gap: 0.25rem;
+}
+
+.eventRow {
+	justify-content: flex-start;
+}
+
+.recurRow {
+	justify-content: flex-end;
+	padding-right: 0.5rem;
 }
 
 .dayContentLarge,

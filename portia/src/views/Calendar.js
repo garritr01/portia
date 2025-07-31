@@ -325,7 +325,7 @@ export const DayView = ({
 					const hourHeight = Math.ceil(hourSpanSnapshot?.hourSpan?.height + hourSpanSnapshot?.hourSpan?.paddingTop + hourSpanSnapshot?.hourSpan?.paddingBottom);
 					const timeWidth = Math.ceil(hourSpanSnapshot?.time?.width + hourSpanSnapshot?.time?.paddingLeft + hourSpanSnapshot?.time?.paddingRight);
 					const eventStyle = getDummyWithChildrenStyle(
-						<div className="eventSpan formRow" id="eventSpan_target">
+						<div className="eventRow formRow" id="eventRow_target">
 							<button className="relButton">
 								Anything
 							</button>
@@ -333,10 +333,10 @@ export const DayView = ({
 								Anything
 							</p>
 						</div>,
-						['height', 'padding-top', 'padding-bottom', 'padding-right']
+						['height']
 					);
 					const recurStyle = getDummyWithChildrenStyle(
-						<div className="recurSpan formRow" id="recurSpan_target">
+						<div className="recurRow formRow" id="recurRow_target">
 							<button className="relButton">
 								Anything
 							</button>
@@ -344,10 +344,9 @@ export const DayView = ({
 								Anything
 							</p>
 						</div>,
-						['height', 'padding-top', 'padding-bottom', 'padding-right']
+						['height']
 					);
-					const titleHeight = eventStyle?.eventSpan?.height;
-					const titleHeightPadded = Math.ceil(eventStyle?.eventSpan?.height) + Math.ceil(eventStyle?.eventSpan?.paddingTop) + Math.ceil(eventStyle?.eventSpan?.paddingBottom);
+					const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
 
 					// Accumulate the number of events in each hour
 					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
@@ -359,11 +358,11 @@ export const DayView = ({
 					}
 
 					// Accumulate necessary formatting info for each hour label
-					let prevMemberHeight = overlapMembers.length * titleHeightPadded;
+					let prevMemberHeight = overlapMembers.length * titleHeight;
 					const hourFormatting = [{ top: prevMemberHeight }];
 					for (let hr = 0; hr < 24; hr++) {
-						const prevHrHeight = (hr + 1) * hourHeight;
-						prevMemberHeight += hourMembers[hr].length * titleHeightPadded;
+						const prevHrHeight = hr * hourHeight;
+						prevMemberHeight += hourMembers[hr].length * titleHeight;
 						hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
 					}
 
@@ -381,39 +380,34 @@ export const DayView = ({
 						if (!overlapping) { potOverlaps = [] }
 						potOverlaps.push(end);
 
-						const hourSkipsStart = (start < date) ? 0
-							: start.getHours() + 1;
-						const titleSkipsStart = (start < date) ? overlapMembers.filter(t => new Date(t.startStamp) < start).length
-							:	(
-								overlapMembers.length
-								+ hourMembers.slice(0, start.getHours()).reduce((sum, mem) => sum + mem.length, 0)
-								+ hourMembers[start.getHours()].filter(mem => {
-										if (mem.start < start) {
-											return true;
-										} else if (timeDiff(mem.start, start).minutes === 0 && mem.path.localeCompare(item.path) < 0) {
-											return true;
-										} else {
-											return false;
-										}
-									}
-								).length
-							);
-						//console.log(item.path, hourSkipsStart);
-						const hourSkipsEnd = (end > addTime(date, { days: 1 })) ? 24
-							: end.getHours() - date.getHours();
-						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, mem) => sum + mem.length, 0)
-						const endHourTitleSkips = hourMembers[end.getHours()].filter(mem => (mem.start < end)).length;
+						const topMembers = hourMembers[start.getHours()];
+						const topMemberSkips = topMembers.filter(mem =>
+							(mem.start < item.startStamp)
+							|| (timeDiff(mem.start, item.startStamp).minutes === 0 && mem.path < item.path)
+						).length;
+						const hourTop = hourFormatting[start.getHours()].top;
+						const lineTop = hourTop + hourHeight/2 + (start.getMinutes() / 60) * (hourHeight/2 + titleHeight * topMembers.length);
+						const rowTop = hourTop + hourHeight/2 + topMemberSkips * titleHeight;
+						console.log('titleHeightPadded', titleHeight)
 
-						const top = hourHeight * hourSkipsStart
-							+ titleHeightPadded * titleSkipsStart; // Height of events in previous hours
-						const bottom = hourHeight * hourSkipsEnd // Height of preceding hour labels
-							+ titleHeightPadded * titleSkipsEnd // Height of events in previous hours
-							+ (end.getMinutes() / 60) * (titleHeightPadded * endHourTitleSkips + hourHeight); // min/60 * size of end hour content
-						//console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
-						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
+						const bottomMembers = hourMembers[end.getHours()];
+						const hourBottom = hourFormatting[end.getHours()].top;
+						const lineBottom = hourBottom + hourHeight/2 + (end.getMinutes() / 60) * (hourHeight/2 + titleHeight * bottomMembers.length);
 
-						const right = (item?.isRecur || !item?.complete) ? -(8 * (indents + 1) + eventStyle?.eventSpan?.paddingRight + timeWidth) : 8 * (indents + 1);
-						formatting.push({ top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px`, transform: ('translateX('+right+'px)')});
+						//console.log(date, item.path, '\ntopMembers:', topMembers, '\ntopMemberSkips:', topMemberSkips, '\nhourTop:', hourTop, '\nlineTop:', lineTop, '\nrowTop:', rowTop, '\nbottomMembers:', bottomMembers, '\nhourBottom:', hourBottom, '\nlineBottom:', lineBottom);
+
+						const translateLine = (item?.isRecur || !item?.complete) ? -(8 * indents + timeWidth) : 8 * indents;
+						const translateRow = (item?.isRecur || !item?.complete) ? translateLine -8 : translateLine + 8;
+						//if (item.path.endsWith('drugs')) { console.log(translateX, '= -8 * ', indents, ' + ', eventStyle?.eventSpan?.paddingRight, ' + ', timeWidth) }
+						
+						const line = { top: lineTop + 'px', height: `${Math.max(lineBottom - lineTop, 10)}px`, transform: 'translateX(' + translateLine + 'px)' }
+						if (item?.isRecur || !item?.complete) {
+							line.right = '0';
+						}
+						const row = { top: rowTop + 'px', transform: 'translateX(' + translateRow + 'px)' }
+
+						console.log('line', line);
+						formatting.push({ row, line });
 					}
 
 					return (
@@ -437,10 +431,11 @@ export const DayView = ({
 								)}
 								{daysEvents.map((item, jdx) => 
 									<React.Fragment>
-										<div key={`${idx}-${jdx}`} 
-											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'} formRow`} 
-											style={{ ...formatting[jdx], zIndex: jdx }}
-											>
+										<span key={`${idx}-${jdx}`} 
+											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'}`} 
+											style={formatting[jdx].line}
+										/>
+										<div className={`${(item?.isRecur || !item.complete) ? 'recurRow' : 'eventRow'} formRow`} style={formatting[jdx].row}>
 											{(item?.isRecur || !item?.complete) &&
 												<p className="sep">
 													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
@@ -449,13 +444,13 @@ export const DayView = ({
 												</p>
 											}
 											<button className="relButton" onClick={() => {
-													if (item.isRecur) {
-														createCompositeFromRecur(item);
-														setShowForm({ _id: 'new' }); // click recur case
-													} else {
-														setShowForm({ _id: item._id }); // click event case
-													}
-												}}>
+												if (item.isRecur) {
+													createCompositeFromRecur(item);
+													setShowForm({ _id: 'new' }); // click recur case
+												} else {
+													setShowForm({ _id: item._id }); // click event case
+												}
+											}}>
 												{item.path.split('/')[item.path.split('/').length - 1]}
 											</button>
 											{(!item?.isRecur && item?.complete) &&
