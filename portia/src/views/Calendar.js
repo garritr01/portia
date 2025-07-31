@@ -355,7 +355,7 @@ export const DayView = ({
 					for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
 						const start = new Date(e.startStamp);
 						const hour = start.getHours();
-						hourMembers[hour].push(start);
+						hourMembers[hour].push({ start, path: e.path });
 					}
 
 					// Accumulate necessary formatting info for each hour label
@@ -386,14 +386,23 @@ export const DayView = ({
 						const titleSkipsStart = (start < date) ? overlapMembers.filter(t => new Date(t.startStamp) < start).length
 							:	(
 								overlapMembers.length
-								+ hourMembers.slice(0, start.getHours()).reduce((sum, t) => sum + t.length, 0)
-								+ hourMembers[start.getHours()].filter(t => t < start).length
-							)
+								+ hourMembers.slice(0, start.getHours()).reduce((sum, mem) => sum + mem.length, 0)
+								+ hourMembers[start.getHours()].filter(mem => {
+										if (mem.start < start) {
+											return true;
+										} else if (timeDiff(mem.start, start).minutes === 0 && mem.path.localeCompare(item.path) < 0) {
+											return true;
+										} else {
+											return false;
+										}
+									}
+								).length
+							);
 						//console.log(item.path, hourSkipsStart);
 						const hourSkipsEnd = (end > addTime(date, { days: 1 })) ? 24
 							: end.getHours() - date.getHours();
-						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, times) => sum + times.length, 0)
-						const endHourTitleSkips = hourMembers[end.getHours()].filter(t => t < end).length;
+						const titleSkipsEnd = overlapMembers.length + hourMembers.slice(0, end.getHours()).reduce((sum, mem) => sum + mem.length, 0)
+						const endHourTitleSkips = hourMembers[end.getHours()].filter(mem => (mem.start < end)).length;
 
 						const top = hourHeight * hourSkipsStart
 							+ titleHeightPadded * titleSkipsStart; // Height of events in previous hours
