@@ -403,7 +403,7 @@ export const DayView = ({
 						//console.log(item.path, (end.getMinutes() / 60), '\ntitleHeight', titleHeight, '\ntitleHeightPadded', titleHeightPadded, '\nhourHeight', hourHeight, '\nhourSkipsEnd', hourSkipsEnd, '\ntitleSkipsEnd', titleSkipsEnd, '\nendHourTitleSkips', endHourTitleSkips, '\ntop', top, '\nbottom', bottom);
 						//console.log(item.path, 'left:', left, 'top:', top, 'height:', bottom, ' - ', top, ' = ', (bottom - top));
 
-						const right = item.isRecur ? -(8 * (indents + 1) + eventStyle?.eventSpan?.paddingRight + timeWidth) : 8 * (indents + 1);
+						const right = (item?.isRecur || !item?.complete) ? -(8 * (indents + 1) + eventStyle?.eventSpan?.paddingRight + timeWidth) : 8 * (indents + 1);
 						formatting.push({ top: top+'px', height: `${Math.max(bottom-top, titleHeight)}px`, transform: ('translateX('+right+'px)')});
 					}
 
@@ -429,10 +429,10 @@ export const DayView = ({
 								{daysEvents.map((item, jdx) => 
 									<React.Fragment>
 										<div key={`${idx}-${jdx}`} 
-											className={`${item?.isRecur ? 'recurSpan' : 'eventSpan'} formRow`} 
+											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'} formRow`} 
 											style={{ ...formatting[jdx], zIndex: jdx }}
 											>
-											{item?.isRecur &&
+											{(item?.isRecur || !item?.complete) &&
 												<p className="sep">
 													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
 													-
@@ -449,7 +449,7 @@ export const DayView = ({
 												}}>
 												{item.path.split('/')[item.path.split('/').length - 1]}
 											</button>
-											{!item?.isRecur &&
+											{(!item?.isRecur && item?.complete) &&
 												<p className="sep">
 													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
 													-

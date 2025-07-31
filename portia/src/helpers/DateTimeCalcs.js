@@ -33,7 +33,7 @@ export const monthOptions = [
 ];
 
 /* Convert predefined keys to Date objects */
-const timeStampKeys = ['startStamp', 'endStamp', 'until'];
+const timeStampKeys = ['startStamp', 'endStamp', 'until', 'scheduleStart'];
 export const timeStampsToDate = obj => {
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>

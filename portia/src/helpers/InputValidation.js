@@ -116,6 +116,7 @@ export const validateEvent = (event) => {
 			placeholder: ['string'],
 			suggestions: ['string'],
 		},
+		complete: ['boolean'],
 		startStamp: ['date'],
 		endStamp: ['date'],
 	}

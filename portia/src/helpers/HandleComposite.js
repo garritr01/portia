@@ -13,6 +13,7 @@ export const makeEmptyEvent = () =>  ({
 	path: '',
 	scheduleStart: null, // Store the schedule instance's timestamp (for omitting schedule on calendar)
 	info: [],
+	complete: false,
 	startStamp: new Date(), // Define start time of event
 	endStamp: new Date(),
 });

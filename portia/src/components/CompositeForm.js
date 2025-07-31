@@ -582,7 +582,6 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				const pSplit = p.split('/');
 				const pSliced = pSplit.slice(0, formPathLength);
 				const pTrimmed = pSliced.join('/');
-				console.log(pTrimmed, form.path);
 				if (pTrimmed === form.path && pSplit.length > formPathLength) {
 					return pSplit.slice(0, formPathLength + 1).join('/');
 				} else {
@@ -786,6 +785,23 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						setSyncStartAndEnd={setSyncStartAndEnd}
 						/>
 			}
+
+			{ /** COMPLETION INDICATOR */}
+			<div className="navRow">
+				<p className="sep">Complete</p>
+				<button 
+					className={`navCell relButton ${event.complete && 'selected'}`}
+					onClick={() => !event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: true })}
+					>
+					Yes
+				</button>
+				<button
+					className={`navCell relButton ${!event.complete && 'selected'}`}
+					onClick={() => event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: false })}
+					>
+					No
+				</button>
+			</div>
 
 			{/** START AND END DATETIMES */}
 			{form?.includeStart &&
