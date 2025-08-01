@@ -1,5 +1,7 @@
 # Usage Notes
 ## Bugs
+- KeyNav breaks down when I add/remove inputs (generate stable keys for input fields)
+- Allow KeyNav to focus buttons or some other method so I can use keys to hit buttons
 ## UX Improvements
 - Color scheme by leading directory
 - Add suggestions for inputs

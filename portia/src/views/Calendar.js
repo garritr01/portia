@@ -317,7 +317,6 @@ export const DayView = ({
 
 					const hourSpanSnapshot = getDummyWithChildrenStyle(
 						<div className='hourSpan' id="hourSpan_target">
-							<div className='hourLine'/>
 							<div id="time_target">00:00</div>
 						</div>, 
 						['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
@@ -327,26 +326,14 @@ export const DayView = ({
 					const eventStyle = getDummyWithChildrenStyle(
 						<div className="eventRow formRow" id="eventRow_target">
 							<button className="relButton">
-								Anything
+								Sometext
 							</button>
-							<p className="sep">
-								Anything
-							</p>
-						</div>,
-						['height']
-					);
-					const recurStyle = getDummyWithChildrenStyle(
-						<div className="recurRow formRow" id="recurRow_target">
-							<button className="relButton">
-								Anything
-							</button>
-							<p className="sep">
-								Anything
-							</p>
 						</div>,
 						['height']
 					);
 					const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
+					//console.log('hH', hourHeight);
+					//console.log('tH', titleHeight);
 
 					// Accumulate the number of events in each hour
 					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
@@ -361,8 +348,9 @@ export const DayView = ({
 					let prevMemberHeight = overlapMembers.length * titleHeight;
 					const hourFormatting = [{ top: prevMemberHeight }];
 					for (let hr = 0; hr < 24; hr++) {
-						const prevHrHeight = hr * hourHeight;
-						prevMemberHeight += hourMembers[hr].length * titleHeight;
+						const prevHrHeight = (hr + 1) * hourHeight;
+						const numMem = hourMembers[hr].length;
+						prevMemberHeight += numMem > 0 ? numMem * titleHeight - hourHeight : 0;
 						hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
 					}
 
@@ -385,14 +373,16 @@ export const DayView = ({
 							(mem.start < item.startStamp)
 							|| (timeDiff(mem.start, item.startStamp).minutes === 0 && mem.path < item.path)
 						).length;
-						const hourTop = hourFormatting[start.getHours()].top;
-						const lineTop = hourTop + hourHeight/2 + (start.getMinutes() / 60) * (hourHeight/2 + titleHeight * topMembers.length);
-						const rowTop = hourTop + hourHeight/2 + topMemberSkips * titleHeight;
+						const hourTop = hourFormatting[start.getHours()].top + hourHeight/2;
+						const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
+						const lineTop = hourTop + (start.getMinutes() / 60) * topHourHeight;
+						const rowTop = hourTop + topMemberSkips * titleHeight;
 						//console.log('titleHeightPadded', titleHeight)
 
 						const bottomMembers = hourMembers[end.getHours()];
-						const hourBottom = hourFormatting[end.getHours()].top;
-						const lineBottom = hourBottom + hourHeight/2 + (end.getMinutes() / 60) * (hourHeight + titleHeight * bottomMembers.length);
+						const hourBottom = hourFormatting[end.getHours()].top + hourHeight/2;
+						const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
+						const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
 
 						//console.log(date, item.path, '\ntopMembers:', topMembers, '\ntopMemberSkips:', topMemberSkips, '\nhourTop:', hourTop, '\nlineTop:', lineTop, '\nrowTop:', rowTop, '\nbottomMembers:', bottomMembers, '\nhourBottom:', hourBottom, '\nlineBottom:', lineBottom);
 
@@ -400,11 +390,18 @@ export const DayView = ({
 						const translateRow = (item?.isRecur || !item?.complete) ? translateLine -8 : translateLine + 8;
 						//if (item.path.endsWith('drugs')) { console.log(translateX, '= -8 * ', indents, ' + ', eventStyle?.eventSpan?.paddingRight, ' + ', timeWidth) }
 						
-						const line = { top: lineTop + 'px', height: `${Math.max(lineBottom - lineTop, 10)}px`, transform: 'translateX(' + translateLine + 'px)' }
+						const line = { 
+							top: lineTop + 'px', 
+							height: `${Math.max(lineBottom - lineTop, 4)}px`, 
+							transform: 'translateX(' + translateLine + 'px)' 
+						}
 						if (item?.isRecur || !item?.complete) {
 							line.right = '0';
 						}
-						const row = { top: rowTop + 'px', transform: 'translateX(' + translateRow + 'px)' }
+						const row = { 
+							top: rowTop + 'px', 
+							transform: 'translateX(' + translateRow + 'px)' 
+						}
 
 						//console.log('line', line);
 						formatting.push({ row, line });

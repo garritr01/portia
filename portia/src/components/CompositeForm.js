@@ -13,6 +13,7 @@ import {
 	FiEdit,
 	FiUpload
 } from 'react-icons/fi';
+import { v4 as uuid } from 'uuid';
 import { validateForm, validateEvent, validateSchedule } from '../helpers/InputValidation';
 import {
 	clamp,
@@ -602,8 +603,8 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);
+	//useEffect(() => console.log("form:\n", form), [form]);
+	//useEffect(() => console.log("event:\n", event), [event]);	
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);

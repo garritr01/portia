@@ -8,7 +8,7 @@ export const KeyNavProvider = ({ children }) => {
 	const [current, setCurrent] = useState(null);
 	const orderRef = useRef([]);
 
-	//useEffect(() => console.log("Current Nav: ", current), [current]);
+	useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	const rebuildNavOrder = useCallback(() => {
 		const rows = document.body.querySelectorAll(".navBlock .navRow");
