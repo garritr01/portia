@@ -252,7 +252,7 @@ export const DayView = ({
 			}))
 		};
 		reduceComposite({ type: 'set', event: newEvent, form: newForm, schedules: newScheds });
-	}
+	};
 
 	return (
 		<>

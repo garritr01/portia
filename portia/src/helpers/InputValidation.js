@@ -22,6 +22,8 @@ const falseToTest = (value) => {
 }
 
 // Recursively check type validity of objects before storage
+// Objects check nested values based on keys 
+// Arrays check each value for specified check
 const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
 	// Record location of check
 	const path = keys.join('->') || 'root';
@@ -90,6 +92,8 @@ export const validateForm = (form) => {
 			label: ['string'],
 			type: ['string'],
 			placeholder: ['string'],
+			baseValue: ['string', 'boolean'],
+			suggestions: ['string'],
 			options: ['string'],
 		},
 	}

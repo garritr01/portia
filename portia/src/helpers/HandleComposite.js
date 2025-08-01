@@ -63,6 +63,11 @@ const setNested = (obj, path, value) => {
 export const updateComposite = (state, action) => {
 	if (action.type === 'reset') {
 		return initialCompositeState;
+	} else if (action.type === 'updateDirty') {
+		return {
+			...state,
+			dirty: setNested(state.dirty, action.path, action.value),
+		}
 	} else if (action.type === 'drill') {
 		const [objType, ...rest] = action.path;
 		if (objType === 'schedules') {

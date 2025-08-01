@@ -369,6 +369,14 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 			path: ['form', 'info', fieldIdx, 'options'],
 			value: updatedOptions
 		});
+
+		if (form.info[fieldIdx].baseValue === optionsCopy[optIdx]) {
+			reduceComposite({
+				type: 'drill',
+				path: ['form', 'info', fieldIdx, 'baseValue'],
+				value: null
+			})
+		}
 	};
 
 	return (
@@ -384,18 +392,38 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 						<ErrorInfoButton errID={`${idx}-label`} err={errors?.info?.[idx]?.label?.err} />
 					</div>
 					{f.type === 'input' ?
-						<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "navCell erred" : "navCell"}>
-							<input
-								placeholder="Placeholder..."
-								value={f.placeholder}
-								onChange={e => changeField(['form', 'info', idx, 'placeholder'], e.target.value)}
-							/>
-							<ErrorInfoButton errID={`${idx}-placeholder`} err={errors?.info?.[idx]?.placeholder?.err} />
-						</div>
+						<React.Fragment>
+							<div id={`${idx}-placeholder`} className={errors?.info?.[idx]?.placeholder?.err ? "navCell erred" : "navCell"}>
+								<input
+									placeholder="Placeholder..."
+									value={f.placeholder}
+									onChange={e => changeField(['form', 'info', idx, 'placeholder'], e.target.value)}
+								/>
+								<ErrorInfoButton errID={`${idx}-placeholder`} err={errors?.info?.[idx]?.placeholder?.err} />
+							</div>
+							<div id={`${idx}-baseValue`} className={errors?.info?.[idx]?.baseValue?.err ? "navCell erred" : "navCell"}>
+								<input
+									placeholder="Autofilled Value..."
+									value={f.baseValue}
+									onChange={e => changeField(['form', 'info', idx, 'baseValue'], e.target.value)}
+								/>
+								<ErrorInfoButton errID={`${idx}-baseValue`} err={errors?.info?.[idx]?.baseValue?.err} />
+							</div>
+						</React.Fragment>
 						: f.type === 'tf' ?
 							<>
-								<button className="relButton">True</button>
-								<button className="relButton">False</button>
+								<button 
+									className={`relButton ${f.baseValue === true ? 'selected' : ''}`}
+									onClick={() => reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'baseValue'], value: f.baseValue !== true ? true : null })}
+									>
+									True
+								</button>
+								<button 
+									className={`relButton ${f.baseValue === false ? 'selected' : ''}`}
+									onClick={() => reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'baseValue'], value: f.baseValue !== false ? false : null })}
+									>
+									False
+								</button>
 							</>
 							: null
 					}
@@ -425,6 +453,9 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 										/>
 										<ErrorInfoButton errID={`${idx}-options-${optIdx}`} err={errors?.info?.[idx]?.options?.[optIdx]?.err} />
 									</div>
+									<FiCheck className={`relButton ${f.baseValue === opt ? 'selected' : ''}`}
+										onClick={() => reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'baseValue'], value: f.baseValue === opt ? null : opt })} 
+										/>
 									<button className="relButton" onClick={() => removeOption(idx, optIdx)}>×</button>
 								</React.Fragment>
 							))}
@@ -437,7 +468,7 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 	);
 }
 
-const EventForm = ({ event, errors, changeField, reduceComposite }) => {
+const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 
 	const addInput = (idx) => {
 		if (event.info[idx].type !== 'input') {
@@ -449,7 +480,7 @@ const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 		reduceComposite({
 			type: 'drill',
 			path: ['event', 'info', idx, 'content'],
-			value: [...contentCopy, null]
+			value: [...contentCopy, '']
 		});
 	};
 
@@ -476,14 +507,19 @@ const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 					{f.type === 'input' ?
 						<>
 							{f.content.map((inp, inpIdx) => (
-								<div key={inpIdx} id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "navCell erred" : "navCell"}>
-									<input key={inpIdx}
-										placeholder={f.placeholder + '...'}
-										value={inp}
-										onChange={e => changeField(['event', 'info', idx, 'content', inpIdx], e.target.value)}
+								<div id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "navCell erred" : "navCell"}>
+									<DropSelect
+										dropHeaderID={`${idx}-content-${inpIdx}Input`}
+										options={form.info[idx].suggestions.map(sugg => ({ display: sugg, value: sugg }))}
+										value={{ display: inp, value: inp }}
+										setter={newVal => {
+											changeField(['event', 'info', idx, 'content', inpIdx], newVal);
+										}}
+										allowType={true}
+										realtimeUpdate={true}
+										errorInfo={{ errID: `${idx}-content-${inpIdx}`, err: errors?.event?.info?.[idx]?.content?.[inpIdx]?.err }}
 									/>
-									<button className="relButton" onClick={() => removeInput(idx, inpIdx)}>×</button>
-									<ErrorInfoButton errID={`${idx}-content-${inpIdx}`} err={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err} />
+									<button className="relButton" onClick={() => removeInput(idx, inpIdx)}>x</button>
 								</div>
 							))}
 							<button className="relButton" onClick={() => addInput(idx)}>+</button>
@@ -536,7 +572,8 @@ const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 
 export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
-	const { form, event, schedules, dirty, errors } = composite;
+	const { form, event, schedules, errors } = composite;
+	const [pendingSave, setPendingSave] = useState(false);
 	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]);
 	const [editSchedule, setEditSchedule] = useState(null);
 	const schedule = editSchedule !== null ? schedules[editSchedule] : null;
@@ -565,8 +602,8 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
-	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);
+	useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -599,11 +636,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	const updateEventUI = (updatedFormInfo) => {
 		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
 			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
+			const { baseValue, suggestions, ...cleanedF } = f;
 			if (prevEvent) {
-				return { ...f, content: prevEvent.content };
+				return { ...cleanedF, content: prevEvent.content };
 			} else {
-				const emptyContent = (f.type === 'input' || f.type === 'text') ? [''] : null;
-				return { ...f, content: emptyContent }
+				const emptyContent = (f.type === 'input' || f.type === 'text') ? [baseValue] : baseValue;
+				return { ...cleanedF, content: emptyContent }
 			}
 		});
 		reduceComposite({
@@ -642,6 +680,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		const valid = validateForm(form);
 		reduceComposite({ type: 'update', errors: { ...errors, form: valid.validity } });
 		if (!valid.isValid) {
+			console.warn("Form validation failed:", valid);
 			return;
 		}
 		ogState.current.form = {
@@ -652,17 +691,51 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		updateEventUI(form.info);
 	};
 
+	const updateSuggestions = () => {
+		const inputContent = event.info.map(f => {
+			if (f.type === 'input') {
+				return f.content;
+			} else {
+				return null;
+			}
+		});
+		console.log("Input content:", inputContent);
+		inputContent.forEach((content, idx) => {
+			if (content === null) { return }
+			let newEntries = [];
+			content.forEach((entry) => {
+				if (!form.info[idx].suggestions.includes(entry) && !newEntries.includes(entry)) {
+					newEntries.push(entry);
+				}
+			})
+			if (newEntries.length > 0) {
+				console.log(`Adding new suggestions for field ${idx}:`, newEntries);
+				console.log('Will look like:', [ ...form.info[idx].suggestions, ...newEntries]);
+				reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'suggestions'], value: [ ...form.info[idx].suggestions, ...newEntries] });
+			}
+		})
+	}
+
 	// Allows saving w & w/o event
 	const handleUpsert = (saveEvent) => {
-		const outDirty = { ...dirty, event: (saveEvent && dirty.event) };
 		if (saveEvent) {
 			const valid = validateEvent(event);
 			reduceComposite({ type: 'update', errors: { ...errors, event: valid.validity } });
 			console.log(valid);
 			if (!valid.isValid) { return }
+			updateSuggestions();
+		} else {
+			reduceComposite({ type: 'updateDirty', path: ['event'], value: false });
 		}
-		upsertComposite(composite, outDirty);
+		setPendingSave(true);
 	};
+
+	useEffect(() => {
+		if (pendingSave) { 
+			upsertComposite(composite);
+			setPendingSave(false);
+		}
+	}, [composite, pendingSave]);
 
 	const changeField = (path, val) => {
 		reduceComposite({
@@ -674,12 +747,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	const addField = (type) => {
 		const newField = type === 'mc'
-			? { type, label: '', options: [''] }
+			? { type, label: '', options: [''], baseValue: null }
 			: type === 'tf'
-				? { type, label: '' }
+				? { type, label: '', baseValue: null }
 				: type === 'input'
-					? { type, label: '', placeholder: '', suggestions: [] }
-					: { type, label: '', placeholder: '' };
+					? { type, label: '', placeholder: '', baseValue: '', suggestions: [] }
+					: { type, label: '', placeholder: '', baseValue: '' };
 		reduceComposite({
 			type: 'update',
 			form: { ...form, info: [...form.info, newField] },
@@ -778,6 +851,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				: /** EDIT EVENT INFO */
 					<EventForm
 						event={event}
+						form={form}
 						errors={errors.event}
 						changeField={changeField}
 						reduceComposite={reduceComposite}

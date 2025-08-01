@@ -19,10 +19,10 @@ def upsertComposite(payload: dict, uID: str) -> dict:
 
 	# Store objects to be saved for inspection
 	objDir = '/home/garritr01/Documents/portiaApp/backend/logs/objects/'
-	#with open(f"{objDir}form.json", "w") as file:
-	#	json.dump(formData, file, indent=2)
-	#with open(f"{objDir}event.json", "w") as file:
-	#	json.dump(eventData, file, indent=2)
+	with open(f"{objDir}form.json", "w") as file:
+		json.dump(formData, file, indent=2)
+	with open(f"{objDir}event.json", "w") as file:
+		json.dump(eventData, file, indent=2)
 	with open(f"{objDir}schedules.json", "w") as file:
 		json.dump(schedData, file, indent=2)
 

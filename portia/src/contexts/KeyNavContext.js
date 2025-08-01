@@ -219,7 +219,7 @@ export const KeyNavProvider = ({ children }) => {
 
 	// Update current state of nav on click
 	const handleClick = useCallback((e) => {	
-		console.log("Click", e.target);
+		//console.log("Click", e.target);
 		focusBehavior(e.target);
 	}, [focusBehavior]);
 
@@ -232,7 +232,7 @@ export const KeyNavProvider = ({ children }) => {
 
 	const handleTouchStart = useCallback((e) => {
 		// Set current to .navCell if it or descendants were clicked
-		console.log("Touch start", e.target);
+		//console.log("Touch start", e.target);
 		const cell = e.target.closest?.(".navCell");
 		if (cell instanceof HTMLElement) { focusBehavior(cell, false) }
 		else { focusBehavior(null) }
