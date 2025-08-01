@@ -505,7 +505,7 @@ const EventForm = ({ event, errors, changeField, reduceComposite }) => {
 				</div>
 				{f.type === 'text' ?
 					<div className="navRow">
-						<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "navCell erred" : "navCell"}>
+						<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "navCell wTextArea erred" : "navCell wTextArea"}>
 							<textarea
 								placeholder={f.placeholder + '...'}
 								value={f.content}

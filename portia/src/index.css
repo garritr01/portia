@@ -163,7 +163,8 @@ body,
 	box-shadow: 0 0.125rem 0.5rem var(--shadow1);
 	width: 90vw;
 	max-height: 80vh;
-	overflow: visible;
+	overflow-x: visible;
+	overflow-y: auto;
 }
 
 /* #endregion ---- TOP LEVEL ---- */
@@ -281,7 +282,7 @@ body,
 	padding-top: 1.5rem;
 }
 
-.portal .form,
+.portal .form,	
 .portal .navBlock {
 	position: relative;
 	box-sizing: border-box;
@@ -343,10 +344,12 @@ body,
 	user-select: none;
 }
 
-textarea.formRow,
-textarea.navRow {
-	width: "100%";
-	resize: "vertical";
+.wTextArea {
+	flex-grow: 1;
+}
+
+.wTextArea textarea {
+	width: 100%;
 }
 
 /* #endregion ---- CHECKLIST ---- */

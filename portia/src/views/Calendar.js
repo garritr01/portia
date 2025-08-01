@@ -388,11 +388,11 @@ export const DayView = ({
 						const hourTop = hourFormatting[start.getHours()].top;
 						const lineTop = hourTop + hourHeight/2 + (start.getMinutes() / 60) * (hourHeight/2 + titleHeight * topMembers.length);
 						const rowTop = hourTop + hourHeight/2 + topMemberSkips * titleHeight;
-						console.log('titleHeightPadded', titleHeight)
+						//console.log('titleHeightPadded', titleHeight)
 
 						const bottomMembers = hourMembers[end.getHours()];
 						const hourBottom = hourFormatting[end.getHours()].top;
-						const lineBottom = hourBottom + hourHeight/2 + (end.getMinutes() / 60) * (hourHeight/2 + titleHeight * bottomMembers.length);
+						const lineBottom = hourBottom + hourHeight/2 + (end.getMinutes() / 60) * (hourHeight + titleHeight * bottomMembers.length);
 
 						//console.log(date, item.path, '\ntopMembers:', topMembers, '\ntopMemberSkips:', topMemberSkips, '\nhourTop:', hourTop, '\nlineTop:', lineTop, '\nrowTop:', rowTop, '\nbottomMembers:', bottomMembers, '\nhourBottom:', hourBottom, '\nlineBottom:', lineBottom);
 
@@ -406,7 +406,7 @@ export const DayView = ({
 						}
 						const row = { top: rowTop + 'px', transform: 'translateX(' + translateRow + 'px)' }
 
-						console.log('line', line);
+						//console.log('line', line);
 						formatting.push({ row, line });
 					}
 
