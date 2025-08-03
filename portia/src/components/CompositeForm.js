@@ -526,17 +526,21 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 							<button className="relButton" onClick={() => addInput(idx)}>+</button>
 						</>
 						: f.type === 'tf' ?
-							<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "navCell erred" : "navCell"}>
-								<button className={`relButton ${f.content === true ? 'selected' : ''}`}
-									onClick={() => changeField(['event', 'info', idx, 'content'], f.content === true ? null : true)}>
-									True
-								</button>
-								<button className={`relButton ${f.content === false ? 'selected' : ''}`}
-									onClick={() => changeField(['event', 'info', idx, 'content'], f.content === false ? null : false)}>
-									False
-								</button>
+							<React.Fragment>
+								<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "navCell erred" : "navCell"}>
+									<button className={`relButton ${f.content === true ? 'selected' : ''}`}
+										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === true ? null : true)}>
+										True
+									</button>
+								</div>
+								<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content?.err ? "navCell erred" : "navCell"}>
+									<button className={`relButton ${f.content === false ? 'selected' : ''}`}
+										onClick={() => changeField(['event', 'info', idx, 'content'], f.content === false ? null : false)}>
+										False
+									</button>
+								</div>
 								<ErrorInfoButton errID={`${idx}-content`} err={errors?.event?.info?.[idx]?.content?.err} />
-							</div>
+							</React.Fragment>
 							: null
 					}
 				</div>
@@ -603,10 +607,77 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
 
+	// For warning about misdefined values
+	/*
+	useEffect(() => {
+		console.log("Triggered warning useEffect");
+		event.info.forEach((f, idx) => {
+			if (f.type === 'text' && typeof(f.content) !== 'string') {
+				console.warn(`Text content at idx ${idx} not string: `, typeof(f.content), f.content);
+			} else if (f.type === 'input') {
+				if (!Array.isArray(f.content)) {
+					console.warn(`Input content at idx ${idx} not object: `, typeof(f.content), f.content);
+				} else {
+					f.content.forEach((val, jdx) => {
+						if (typeof(val) !== 'string') {
+							console.warn(`Input content at idx ${idx}, ${jdx} not string: `, typeof(f.content), f.content);
+						}
+					});
+				}
+			}
+		});
+		form.info.forEach((f, idx) => {
+			if (f.type === 'text') {
+				if (f.baseValue) {
+					console.warn(`Text contains base value`, typeof (f.baseValue), f.baseValue);
+				} 
+			} else if (f.type === 'input') {
+
+				if (!Array.isArray(f.content)) {
+					console.warn(`Input content at idx ${idx} not array: `, typeof (f.content), f.content);
+				} else {
+					f.content.forEach((val, jdx) => {
+						if (typeof (val) !== 'string') {
+							console.warn(`Input content at idx ${idx}, ${jdx} not string: `, typeof (f.content), f.content);
+						}
+					});
+				}
+
+				if (!f?.suggestions) {
+					console.warn(`No suggestions at idx ${idx}.`);
+				} else if (!Array.isArray(f.suggestions)) {
+					console.warn(`Input suggestions at idx ${idx} not array: `, typeof (f.suggestions), f.suggestions);
+				} else {
+					f.suggestions.forEach((val, jdx) => {
+						if (typeof (val) !== 'string') {
+							console.warn(`Input suggestions at idx ${idx}, ${jdx} not string: `, typeof (f.suggestions), f.suggestions);
+						}
+					});
+				}
+			} else if (f.type === 'mc') {
+				if (!f?.options) {
+					console.warn(`mc at idx ${idx} has no options`);
+				} else if (!Array.isArray(f.options)) {
+					console.warn(`Input options at idx ${idx} not array: `, typeof (f.options), f.options);
+				} else {
+					f.options.forEach((val, jdx) => {
+						if (typeof (val) !== 'string') {
+							console.warn(`Input option at idx ${idx}, ${jdx} not string: `, typeof(val), val);
+						}
+					});
+				}
+				if (!f?.baseValue || f.baseValue !== null || typeof(f.baseValue) !== 'string') {
+					console.warn(`mc base value not null or string at ${idx}`, typeof(f?.baseValue), f?.baseValue);
+				}
+			}
+		});
+	}, [form, event]);
+	*/
+
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);	
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
 	// Handle dynamic path for form loading
@@ -641,7 +712,11 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			if (prevEvent) {
 				return { ...cleanedF, content: prevEvent.content };
 			} else {
-				const emptyContent = (f.type === 'input' || f.type === 'text') ? [baseValue] : baseValue;
+				const emptyContent = 
+					(f.type === 'input') ? [baseValue ? baseValue : ''] 
+					: (f.type === 'text') ? '' 
+					: baseValue ? baseValue : null;
+				console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
 				return { ...cleanedF, content: emptyContent }
 			}
 		});
@@ -692,6 +767,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		updateEventUI(form.info);
 	};
 
+	// Update suggestions in form on event save
 	const updateSuggestions = () => {
 		const inputContent = event.info.map(f => {
 			if (f.type === 'input') {
@@ -700,12 +776,16 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				return null;
 			}
 		});
-		console.log("Input content:", inputContent);
 		inputContent.forEach((content, idx) => {
 			if (content === null) { return }
 			let newEntries = [];
 			content.forEach((entry) => {
-				if (!form.info[idx].suggestions.includes(entry) && !newEntries.includes(entry)) {
+				if (
+					entry
+					&& typeof entry !== 'number'
+					&& !form.info[idx].suggestions.includes(entry) 
+					&& !newEntries.includes(entry)
+				) {
 					newEntries.push(entry);
 				}
 			})
@@ -731,6 +811,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setPendingSave(true);
 	};
 
+	// Trigger save with state so everything is updated before executing the save (particularly suggestions)
 	useEffect(() => {
 		if (pendingSave) { 
 			upsertComposite(composite);
@@ -864,18 +945,22 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			{ /** COMPLETION INDICATOR */}
 			<div className="navRow">
 				<p className="sep">Complete</p>
-				<button 
-					className={`navCell relButton ${event.complete && 'selected'}`}
-					onClick={() => !event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: true })}
-					>
-					Yes
-				</button>
-				<button
-					className={`navCell relButton ${!event.complete && 'selected'}`}
-					onClick={() => event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: false })}
-					>
-					No
-				</button>
+				<div className="navCell">
+					<button 
+						className={`relButton ${event.complete && 'selected'}`}
+						onClick={() => !event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: true })}
+						>
+						Yes
+					</button>
+				</div>
+				<div className="navCell">
+					<button
+						className={`relButton ${!event.complete && 'selected'}`}
+						onClick={() => event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: false })}
+						>
+						No
+					</button>
+				</div>
 			</div>
 
 			{/** START AND END DATETIMES */}

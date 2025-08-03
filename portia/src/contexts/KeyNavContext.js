@@ -35,14 +35,16 @@ export const KeyNavProvider = ({ children }) => {
 		// Focus any new input or textarea, or maintain focus on last
 		if (!(cell instanceof HTMLElement)) { return }
 
-		const childInput = cell.querySelector("input, textarea");
+		const focusableChild = cell.querySelector("input, textarea, button");
 
-		if (
-			cell !== current &&
-			focusChildInput && 
-			childInput instanceof HTMLElement
-		) { 
-			childInput.focus();
+		if (cell !== current) {
+			if (focusableChild && focusableChild instanceof HTMLElement) {
+				console.log("Focusing on: ", focusableChild);
+				focusableChild.focus();
+			} else {
+				const prevFocusableChild = current.querySelector("input, textarea, button");
+				console.log("Blurring: ", prevFocusableChild);
+			}
 		}
 		setCurrent(cell);
 

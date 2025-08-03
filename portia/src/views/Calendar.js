@@ -248,7 +248,14 @@ export const DayView = ({
 			scheduleStart: recurClean.startStamp,
 			info: newForm.info.map(f => ({
 				...f,
-				content: f.type === 'input' || f.type === 'text' ? [''] : null
+				content: 
+					f.type === 'input' ? (
+						f.baseValue ? [f.baseValue] : ['']
+					) 
+					: f.type === 'text' ? (
+						f.baseValue ? f.baseValue : ''
+					) 
+					: null
 			}))
 		};
 		reduceComposite({ type: 'set', event: newEvent, form: newForm, schedules: newScheds });

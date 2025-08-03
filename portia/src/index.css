@@ -340,6 +340,10 @@ body,
 	width: 2.5rem;
 }
 
+.navCell .button:focus {	
+	outline: 10px solid black;
+}
+
 .sep {
 	margin: 0;
 	user-select: none;
