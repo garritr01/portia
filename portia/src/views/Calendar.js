@@ -129,14 +129,15 @@ export const DayView = ({
 			// Autofill based on event
 			let newEvent = eventsMemo[showForm._id];
 			if (newEvent) {
-				if (!newEvent.complete) {
-					newEvent.endStamp = new Date();
-				}
 				// Should always be found
 				let newForm = formsMemo[newEvent.formID];
 				if (!newForm) {
 					console.error(`Form not found from event path: ${newEvent.path}`);
 					newForm = makeEmptyForm();
+				}
+
+				if (!newEvent.complete && newForm.includeStart) {
+					newEvent.endStamp = new Date();
 				}
 
 				// None to many may be found
