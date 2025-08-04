@@ -723,7 +723,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 					(f.type === 'input') ? [baseValue ? baseValue : ''] 
 					: (f.type === 'text') ? '' 
 					: baseValue ? baseValue : null;
-				console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
+				//console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
 				return { ...cleanedF, content: emptyContent }
 			}
 		});

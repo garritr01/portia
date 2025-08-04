@@ -129,6 +129,9 @@ export const DayView = ({
 			// Autofill based on event
 			let newEvent = eventsMemo[showForm._id];
 			if (newEvent) {
+				if (!newEvent.complete) {
+					newEvent.endStamp = new Date();
+				}
 				// Should always be found
 				let newForm = formsMemo[newEvent.formID];
 				if (!newForm) {
@@ -369,15 +372,22 @@ export const DayView = ({
 					
 					// Accumulate the necessary formatting info for each event/recur
 					const formatting = [];
-					let potOverlaps = [];
+					let potLeftOverlaps = [];
+					let potRightOverlaps = [];
 					for (const item of daysEvents) {
 						const start = new Date(item.startStamp);
 						const end = new Date(item.endStamp);
 						
-						const overlapping = potOverlaps.some(e => e > start);
-						const indents = overlapping ? potOverlaps.length : 0;
-						if (!overlapping) { potOverlaps = [] }
-						potOverlaps.push(end);
+						let indents;
+						if (item?.isRecur || !item?.complete) {
+							potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp <= item.startStamp && potR.endStamp >= item.startStamp)) // If starts before and ends during/after
+							potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
+							indents = potRightOverlaps.length;
+						} else {
+							potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp <= item.startStamp && potL.endStamp >= item.startStamp)) // If starts before and ends during/after
+							potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
+							indents = potLeftOverlaps.length;
+						}
 
 						const topMembers = hourMembers[start.getHours()];
 						const topMemberSkips = topMembers.filter(mem =>

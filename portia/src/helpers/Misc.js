@@ -37,7 +37,7 @@ export const dropKeys = (obj) => {
 		let copy = { ...obj };
 
 		if ('key' in copy && 'value' in copy) {
-			console.log("found", copy, 'returning', copy.value);
+			//console.log("found", copy, 'returning', copy.value);
 			return copy.value;
 		}
 
