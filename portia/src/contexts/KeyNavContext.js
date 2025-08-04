@@ -10,13 +10,6 @@ export const KeyNavProvider = ({ children }) => {
 
 	useEffect(() => console.log("Current Nav: ", current), [current]);
 
-	const rebuildNavOrder = useCallback(() => {
-		const rows = document.body.querySelectorAll(".navBlock .navRow");
-		const navOrder2d = [ ...rows ].map(row => [ ...row.querySelectorAll(".navCell") ]).filter(row => row.length > 0);
-		//console.log("NavOrder2D:", navOrder2d);
-		orderRef.current = navOrder2d;
-	}, []);
-
 	// Update current then focus & blur if applicable
 	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
 
@@ -36,13 +29,15 @@ export const KeyNavProvider = ({ children }) => {
 		if (!(cell instanceof HTMLElement)) { return }
 
 		const focusableChild = cell.querySelector("input, textarea, button");
+		const prevFocusableChild = current?.querySelector("input, textarea, button");
 
+		// If cell is not current
 		if (cell !== current) {
+			// If new has focusable, focus, otherwise blur old
 			if (focusableChild && focusableChild instanceof HTMLElement) {
 				console.log("Focusing on: ", focusableChild);
 				focusableChild.focus();
-			} else {
-				const prevFocusableChild = current.querySelector("input, textarea, button");
+			} else if (prevFocusableChild && prevFocusableChild instanceof HTMLElement) {
 				console.log("Blurring: ", prevFocusableChild);
 			}
 		}
@@ -59,6 +54,16 @@ export const KeyNavProvider = ({ children }) => {
 			}
 		}
 	}, [current, focusBehavior]);
+
+	const rebuildNavOrder = useCallback(() => {
+		const rows = document.body.querySelectorAll(".navBlock .navRow");
+		const navOrder2d = [ ...rows ].map(row => [ ...row.querySelectorAll(".navCell") ]).filter(row => row.length > 0);
+		//console.log("NavOrder2D:", navOrder2d);
+		orderRef.current = navOrder2d;
+		if (!document.body.contains(current)) {
+			currentFallback();
+		}
+	}, [currentFallback]);
 
 	// If certain classes added or removed, rebuild the nav order
 	const handleMutation = useCallback((mutations) => {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useReducer } from 'react';
 import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
+import { v4 as uuid } from 'uuid';
 import { useScreen } from '../contexts/ScreenContext';
 import {
 	clamp,
@@ -20,6 +21,7 @@ import {
 	initialCompositeState,
 	updateComposite,
 } from '../helpers/HandleComposite';
+import { assignKeys } from '../helpers/Misc';
 import { useSwipe } from '../helpers/DynamicView';
 import { getDummyStyle, getDummyWithChildrenStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
@@ -142,11 +144,10 @@ export const DayView = ({
 
 				reduceComposite({
 					type: 'update',
-					event: newEvent,
-					form: newForm,
+					event: assignKeys(newEvent),
+					form: assignKeys(newForm),
 					schedules: newSchedules,
 				});
-
 				return;
 			}
 
@@ -175,13 +176,15 @@ export const DayView = ({
 					endStamp: showForm.endStamp,
 				};
 
+				console.log("Opening event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
+
 				reduceComposite({
 					type: 'update',
-					event: newEvent,
-					form: newForm,
+					event: assignKeys(newEvent),
+					form: assignKeys(newForm),
 					schedules: newSchedules,
 				});
-				return
+				return;
 			}
 
 			// Should never get here
@@ -232,6 +235,7 @@ export const DayView = ({
 		});
 	};
 
+		// Create composite based on recur
 	const createCompositeFromRecur = (recur) => {
 		const { isRecur, ...recurClean } = recur;
 		const newScheds = schedules.filter(s => s.path === recurClean.path);
@@ -258,7 +262,8 @@ export const DayView = ({
 					: null
 			}))
 		};
-		reduceComposite({ type: 'set', event: newEvent, form: newForm, schedules: newScheds });
+		console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
+		reduceComposite({ type: 'set', event: assignKeys(newEvent), form: assignKeys(newForm), schedules: newScheds });
 	};
 
 	return (
@@ -415,27 +420,36 @@ export const DayView = ({
 					}
 
 					return (
-						<div key={idx} className={idx === 2 ? 'dayCellLarge' : 'dayCellSmall'}>
+						<div key={date.getTime()} className={idx === 2 ? 'dayCellLarge' : 'dayCellSmall'}>
 							<div
 								className={idx === 2 ? 'dayTitleLarge' : 'dayTitleSmall'}
 								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
 								>
-								<span>{date.toLocaleDateString('default', { weekday: 'short' })}</span>
-								{smallScreen ?
-									<span>{date.toLocaleDateString('default', { month: 'short', day: 'numeric' })}</span>
-									: <span>{date.toLocaleDateString('default', { day: 'numeric' })}</span>
-								}
+								<span>
+									{date.toLocaleDateString('default', { weekday: 'short' })}
+									{' '}
+									{date.toLocaleDateString('default', { day: 'numeric' })}
+								</span>
+								<FiPlus className="relButton" onClick={() => {
+									reduceComposite({ type: 'reset' });
+									const clicked = new Date(date);
+									const current = new Date();
+									clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
+									reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
+									reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
+									setShowForm({ _id: 'new' });
+								}} />
 							</div>
 							<div className={idx === 2 ? 'dayContentLarge' : 'dayContentSmall'}>
 								{hourFormatting.map((fmt, hr) =>
-									<div className='hourSpan' style={fmt}>
+									<div key={hr} className='hourSpan' style={fmt}>
 										<div className='hourLine'/>
 										<div>{hr}:00</div>
 									</div>
 								)}
 								{daysEvents.map((item, jdx) => 
-									<React.Fragment>
-										<span key={`${idx}-${jdx}`} 
+									<React.Fragment key={item._id}>
+										<span
 											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'}`} 
 											style={formatting[jdx].line}
 										/>
@@ -467,15 +481,6 @@ export const DayView = ({
 										</div>
 									</React.Fragment>
 								)}
-								<FiPlus className="createButton" onClick={() => {
-									reduceComposite({ type: 'reset' });
-									const clicked = new Date(date);
-									const current = new Date();
-									clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
-									reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
-									reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
-									setShowForm({ _id: 'new' });
-								}}/>
 							</div>
 						</div>
 					)

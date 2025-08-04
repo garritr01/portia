@@ -13,7 +13,6 @@ import {
 	FiEdit,
 	FiUpload
 } from 'react-icons/fi';
-import { v4 as uuid } from 'uuid';
 import { validateForm, validateEvent, validateSchedule } from '../helpers/InputValidation';
 import {
 	clamp,
@@ -30,6 +29,8 @@ import {
 	monthLength,
 	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
+import { v4 as uuid } from 'uuid';
+import { dropKeys } from '../helpers/Misc';
 import { makeEmptySchedule } from '../helpers/HandleComposite';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
@@ -481,18 +482,18 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 		reduceComposite({
 			type: 'drill',
 			path: ['event', 'info', idx, 'content'],
-			value: [...contentCopy, '']
+			value: [...contentCopy, { value: '', key: uuid() }]
 		});
 	};
 
-	const removeInput = (fieldIdx, inpIdx) => {
+	const removeInput = (fieldIdx, inpKey) => {
 		if (event.info[fieldIdx].type !== 'input') {
 			console.warn("Cannot remove input from non-input field");
 			return;
 		}
 
 		const contentCopy = [...event.info[fieldIdx].content];
-		const updatedContent = contentCopy.filter((_, i) => i !== inpIdx);
+		const updatedContent = contentCopy.filter(c => c.key !== inpKey);
 		reduceComposite({
 			type: 'drill',
 			path: ['event', 'info', fieldIdx, 'content'],
@@ -508,22 +509,28 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 					{f.type === 'input' ?
 						<>
 							{f.content.map((inp, inpIdx) => (
-								<div id={`${idx}-content-${inpIdx}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.err ? "navCell erred" : "navCell"}>
-									<DropSelect
-										dropHeaderID={`${idx}-content-${inpIdx}Input`}
-										options={form.info[idx].suggestions.map(sugg => ({ display: sugg, value: sugg }))}
-										value={{ display: inp, value: inp }}
-										setter={newVal => {
-											changeField(['event', 'info', idx, 'content', inpIdx], newVal);
-										}}
-										allowType={true}
-										realtimeUpdate={true}
-										errorInfo={{ errID: `${idx}-content-${inpIdx}`, err: errors?.event?.info?.[idx]?.content?.[inpIdx]?.err }}
-									/>
-									<button className="relButton" onClick={() => removeInput(idx, inpIdx)}>x</button>
-								</div>
+								<React.Fragment>
+									<div id={`${inp.key}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.value?.err ? "navCell erred" : "navCell"}>
+										<DropSelect
+											dropHeaderID={`${inp.key}Input`}
+											options={form.info[idx].suggestions.map(sugg => ({ display: sugg, value: sugg }))}
+											value={{ display: inp.value, value: inp.value }}
+											setter={newVal => {
+												changeField(['event', 'info', idx, 'content', inpIdx, 'value'], newVal);
+											}}
+											allowType={true}
+											realtimeUpdate={true}
+											errorInfo={{ errID: `${inp.key}`, err: errors?.event?.info?.[idx]?.content?.[inpIdx]?.value?.err }}
+										/>	
+									</div>
+									<div className="navCell" key={`${inp.key+'Remove'}`}>
+										<button className="relButton" onClick={() => removeInput(idx, inp.key)}>x</button>
+									</div>
+								</React.Fragment>
 							))}
-							<button className="relButton" onClick={() => addInput(idx)}>+</button>
+							<div className="navCell">
+								<button className="relButton" onClick={() => addInput(idx)}>+</button>
+							</div>
 						</>
 						: f.type === 'tf' ?
 							<React.Fragment>
@@ -675,7 +682,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	*/
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);	
+	useEffect(() => console.log("event:\n", event), [event]);	
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -798,15 +805,15 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	}
 
 	// Allows saving w & w/o event
-	const handleUpsert = (saveEvent) => {
+	const handleUpsert = (saveEvent) => {	
 		if (saveEvent) {
-			const valid = validateEvent(event);
+			const valid = validateEvent(dropKeys(event));
 			reduceComposite({ type: 'update', errors: { ...errors, event: valid.validity } });
 			console.log(valid);
 			if (!valid.isValid) { return }
 			updateSuggestions();
 		} else {
-			reduceComposite({ type: 'updateDirty', path: ['event'], value: false });
+			reduceComposite({ type: 'controlDirty', dirty: { event: false } });
 		}
 		setPendingSave(true);
 	};
@@ -814,7 +821,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	// Trigger save with state so everything is updated before executing the save (particularly suggestions)
 	useEffect(() => {
 		if (pendingSave) { 
-			upsertComposite(composite);
+			upsertComposite({ ...composite, event: dropKeys(event), form: dropKeys(form)});
 			setPendingSave(false);
 		}
 	}, [composite, pendingSave]);

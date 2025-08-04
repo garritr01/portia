@@ -7,7 +7,7 @@ import { Login, Logout, useUser } from './contexts/UserContext';
 import { useScreen } from './contexts/ScreenContext';
 import { DayView, MonthView, YearView } from './views/Calendar';
 import { useConnCheck, useAuthCheck } from './requests/Tests';
-import { returnDates } from './helpers/DateTimeCalcs';
+import { returnDates, normDate } from './helpers/DateTimeCalcs';
 
 export const App = () => {
 	// --- INITIAL TESTS ----------------------------------------------------------------
@@ -27,7 +27,7 @@ export const App = () => {
 	// Determines calendar view ('year', 'month', 'day'-ish)
 	const [span, setSpan] = useState('day');
 	// Day user most recently interacted with
-	const [selectedDate, setSelectedDate] = useState(new Date());
+	const [selectedDate, setSelectedDate] = useState(normDate(new Date()));
 	// Array containing each date in view
 	const [days, setDays] = useState([]);
 	// Alter date range when necessary

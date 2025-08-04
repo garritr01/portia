@@ -1,4 +1,5 @@
 import { RRule, rrulestr } from 'rrule';
+import { v4 as uuid } from 'uuid';
 
 export const periodOptions = [
 	{ display: 'No Schedule', value: null, altDisplay: "None but this shouldn't appear" },
@@ -391,7 +392,7 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 
 			recurs.forEach(recur => {
 				filteredRecurs.push({
-					_id: sched._id,
+					_id: uuid(),
 					path: sched.path,
 					startStamp: recur,
 					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),

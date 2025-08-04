@@ -229,6 +229,10 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID }) => {
 	const { smallScreen = false } = useScreen() || {};
 
+	//useEffect(() => console.log(`options ${dropHeaderID}`, options), []);
+	//useEffect(() => console.log(`value ${dropHeaderID}`, value), []);
+	//useEffect(() => console.log(`rVal ${dropHeaderID}`, rVal), []);
+
 	const handleArrow = useCallback((e) => {
 		if (!isOpen || !listRef?.current || e.ctrlKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }
 
@@ -277,7 +281,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 	return (
 		<div className="drop">
 
-			<div id={dropHeaderID} className={errorInfo?.err ? "erred dropHeader" : "dropHeader"}>
+			<div key={dropHeaderID} id={dropHeaderID} className={errorInfo?.err ? "erred dropHeader" : "dropHeader"}>
 
 				{/** Use an input if allowType */}
 				{allowType ?

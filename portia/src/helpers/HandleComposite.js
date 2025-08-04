@@ -63,11 +63,6 @@ const setNested = (obj, path, value) => {
 export const updateComposite = (state, action) => {
 	if (action.type === 'reset') {
 		return initialCompositeState;
-	} else if (action.type === 'updateDirty') {
-		return {
-			...state,
-			dirty: setNested(state.dirty, action.path, action.value),
-		}
 	} else if (action.type === 'drill') {
 		const [objType, ...rest] = action.path;
 		if (objType === 'schedules') {
@@ -101,16 +96,17 @@ export const updateComposite = (state, action) => {
 			event: action.event ? { ...state.event, ...action.event } : state.event,
 			schedules: action.schedules ? action.schedules : state.schedules,
 			errors: action.errors ? action.errors : state.errors,
-			dirty: action.type === 'set' ?
-				{
+			dirty: action.type === 'set' ? {
 					form: false,
 					event: true,
 					schedules: action.schedules.reduce((acc, sched) => {
 						acc[sched._id] = false;
 						return acc;
 					}, {})
-				}
-				:	{
+				} : action.type === 'controlDirty' ? {
+					...state.dirty,
+					...action.dirty,
+				} : {
 					form: state.dirty.form || Boolean(action.form), // Dirty if already dirty, otherwise check for corresponding action
 					event: state.dirty.event || Boolean(action.event),
 					schedules: action.schedules ? 
