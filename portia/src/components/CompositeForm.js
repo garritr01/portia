@@ -30,7 +30,7 @@ import {
 	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
 import { v4 as uuid } from 'uuid';
-import { dropKeys } from '../helpers/Misc';
+import { dropKeys, assignKeys } from '../helpers/Misc';
 import { makeEmptySchedule } from '../helpers/HandleComposite';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
@@ -727,12 +727,10 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				return { ...cleanedF, content: emptyContent }
 			}
 		});
+		const newEvent = assignKeys({ ...event, info: updatedEventInfo });
 		reduceComposite({
 			type: 'update',
-			event: {
-				...event,
-				info: updatedEventInfo,
-			}
+			event: newEvent
 		})
 	};
 
@@ -788,12 +786,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			let newEntries = [];
 			content.forEach((entry) => {
 				if (
-					entry
-					&& typeof entry !== 'number'
-					&& !form.info[idx].suggestions.includes(entry) 
-					&& !newEntries.includes(entry)
+					entry.value
+					&& typeof entry.value !== 'number'
+					&& !form.info[idx].suggestions.includes(entry.value) 
+					&& !newEntries.includes(entry.value)
 				) {
-					newEntries.push(entry);
+					newEntries.push(entry.value);
 				}
 			})
 			if (newEntries.length > 0) {

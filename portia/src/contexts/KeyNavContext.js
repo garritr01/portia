@@ -8,7 +8,7 @@ export const KeyNavProvider = ({ children }) => {
 	const [current, setCurrent] = useState(null);
 	const orderRef = useRef([]);
 
-	useEffect(() => console.log("Current Nav: ", current), [current]);
+	//useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	// Update current then focus & blur if applicable
 	const focusBehavior = useCallback((newElm) => {
@@ -24,11 +24,12 @@ export const KeyNavProvider = ({ children }) => {
 		// If cell is not current
 		if (cell !== current) {
 			// If new has focusable, focus, otherwise blur old
-			if (focusableChild && typeof focusableChild.focus === 'function') {
-				console.log("Focusing on: ", focusableChild);
+			if (focusableChild && typeof focusableChild?.focus === 'function') {
+				//console.log("Focusing on: ", focusableChild);
 				focusableChild.focus();
-			} else if (prevFocusableChild && typeof focusableChild.focus === 'function') {
-				console.log("Blurring: ", prevFocusableChild);
+			} else if (prevFocusableChild && typeof prevFocusableChild?.blur === 'function') {
+				//console.log("Blurring: ", prevFocusableChild);
+				prevFocusableChild.blur();	
 			}
 		}
 		setCurrent(cell);

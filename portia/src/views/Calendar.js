@@ -248,7 +248,6 @@ export const DayView = ({
 			...recurClean,
 			_id: null,
 			formID: newForm._id,
-			scheduleID: recurClean._id,
 			scheduleStart: recurClean.startStamp,
 			info: newForm.info.map(f => ({
 				...f,
@@ -317,7 +316,7 @@ export const DayView = ({
 				{days.map((date, idx) => {
 					// Filter out resolved schedules
 					const activeRecurs = recurs.filter(r =>!events.some(e => 
-						e.scheduleID === r._id 
+						e.scheduleID === r.scheduleID 
 						&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
 					));
 					const daysEvents = [ ...events, ...activeRecurs ].filter(item => 

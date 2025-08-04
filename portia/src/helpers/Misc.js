@@ -37,7 +37,8 @@ export const dropKeys = (obj) => {
 		let copy = { ...obj };
 
 		if ('key' in copy && 'value' in copy) {
-			return dropKeys(obj.value);
+			console.log("found", copy, 'returning', copy.value);
+			return copy.value;
 		}
 
 		// Recurse into object

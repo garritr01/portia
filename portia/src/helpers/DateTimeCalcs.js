@@ -381,10 +381,12 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 	schedules.forEach(sched => {
 		if (sched.period === 'single') {
 			filteredRecurs.push({
-				_id: sched._id,
+				_id: uuid(),
+				scheduleID: sched._id,
 				path: sched.path,
 				startStamp: sched.startStamp,
 				endStamp: sched.endStamp,
+				isRecur: true,
 			})
 		} else {
 			const rule = objToRRule(sched);
@@ -393,6 +395,7 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 			recurs.forEach(recur => {
 				filteredRecurs.push({
 					_id: uuid(),
+					scheduleID: sched._id,
 					path: sched.path,
 					startStamp: recur,
 					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),
