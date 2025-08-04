@@ -11,33 +11,23 @@ export const KeyNavProvider = ({ children }) => {
 	useEffect(() => console.log("Current Nav: ", current), [current]);
 
 	// Update current then focus & blur if applicable
-	const focusBehavior = useCallback((newElm, focusChildInput = true) => {
+	const focusBehavior = useCallback((newElm) => {
 
 		const cell = newElm?.closest?.(".navCell");
-
-		// In case I ever realize I DO NEED the force blur
-		//if (current instanceof HTMLElement) {
-		//	// Blur any previously focused input or textarea
-		//	const prevChildInput = current.querySelector("input, textarea");
-		//	const newChildInput = cell.querySelector("input, textarea");
-		//	console.log('prev', prevChildInput);
-		//	console.log('new', newChildInput);
-		//	if (prevChildInput instanceof HTMLElement && newChildInput instanceof HTMLElement) { prevChildInput.blur() }
-		//}
 
 		// Focus any new input or textarea, or maintain focus on last
 		if (!(cell instanceof HTMLElement)) { return }
 
-		const focusableChild = cell.querySelector("input, textarea, button");
-		const prevFocusableChild = current?.querySelector("input, textarea, button");
+		const focusableChild = cell.querySelector("input, textarea, button, .relButton");
+		const prevFocusableChild = current?.querySelector("input, textarea, button, .relButton");
 
 		// If cell is not current
 		if (cell !== current) {
 			// If new has focusable, focus, otherwise blur old
-			if (focusableChild && focusableChild instanceof HTMLElement) {
+			if (focusableChild && typeof focusableChild.focus === 'function') {
 				console.log("Focusing on: ", focusableChild);
 				focusableChild.focus();
-			} else if (prevFocusableChild && prevFocusableChild instanceof HTMLElement) {
+			} else if (prevFocusableChild && typeof focusableChild.focus === 'function') {
 				console.log("Blurring: ", prevFocusableChild);
 			}
 		}

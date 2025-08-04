@@ -340,8 +340,9 @@ body,
 	width: 2.5rem;
 }
 
-.navCell .button:focus {	
-	outline: 10px solid black;
+.navCell .button:focus,
+.navCell .relButton:focus {	
+	outline: 4px solid black;
 }
 
 .sep {

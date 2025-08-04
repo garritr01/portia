@@ -872,15 +872,31 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 					/>
 					<ErrorInfoButton errID={"path"} err={errors?.form?.path?.err} />
 					{allForms.some(f => f.path === form.path) ?
-						<FiUpload className="relButton" 
-							onClick={() => {
-								const matchedSchedules = allSchedules.filter(s => s.path === form.path);
-								const matchedForm = allForms.find(f => f.path === form.path)
-								reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
-								updateEventUI(matchedForm.info);
-							}}
-						/>
-						: <FiUpload className="relButton selected" />
+						<div className="navCell">
+							<FiUpload 
+								className="relButton" 
+								tabIndex={-1}
+								onClick={() => {
+									const matchedSchedules = allSchedules.filter(s => s.path === form.path);
+									const matchedForm = allForms.find(f => f.path === form.path)
+									reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
+									updateEventUI(matchedForm.info);
+								}}
+								onKeyDown={e => {
+									if (e.key === 'Enter') {
+										e.preventDefault();   // prevent page scroll on Space
+										const matchedSchedules = allSchedules.filter(s => s.path === form.path);
+										const matchedForm = allForms.find(f => f.path === form.path)
+										reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
+										updateEventUI(matchedForm.info);
+									}
+								}}
+							/>
+						</div>
+						: 
+						<div className="navCell">	
+							<FiUpload className="relButton selected" tabIndex={-1}/>	
+						</div>
 					}
 				</div>
 			</div>
