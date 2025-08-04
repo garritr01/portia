@@ -134,30 +134,44 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	return (
 		<div id={fieldKey} className={errorInfo?.err ? "navRow erred" : "navRow"}>
 			<p className="sep">{text}</p>
-			{format.order.map((unit) => (
+			{date && format.order.map((unit) => (
 				<React.Fragment key={`${fieldKey}_${unit}`}>
 					<div className="navCell">
 						{unit === 'year' ?
-							<InfDropSelect
-								dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
-								value={{ display: String(date.getFullYear()), value: date.getFullYear() }}
-								setter={(newVal) => commitPart(unit, newVal)}
-								allowType={true}
-							/>
-							:
-							<DropSelect
-								dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
-								options={createOptions(unit)}
-								value={createDefaults(unit)}
-								setter={(newVal) => commitPart(unit, newVal)}
-								allowType={!(['weekday', 'month'].includes(unit))}
-								numericOnly={['day', 'hour', 'minute'].includes(unit)}
-							/>
-						}
+								<InfDropSelect
+									dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
+									value={{ display: String(date.getFullYear()), value: date.getFullYear() }}
+									setter={(newVal) => commitPart(unit, newVal)}
+									allowType={true}
+								/>
+								:
+								<DropSelect
+									dropHeaderID={`${objKey}_${fieldKey}_${unit}Input`}
+									options={createOptions(unit)}
+									value={createDefaults(unit)}
+									setter={(newVal) => commitPart(unit, newVal)}
+									allowType={!(['weekday', 'month'].includes(unit))}
+									numericOnly={['day', 'hour', 'minute'].includes(unit)}
+								/>
+							}
 					</div>
 					<p className="sep">{format[unit]}</p>
 				</React.Fragment>
 			))}
+			{fieldKey === 'until' &&
+				<button
+					className={`relButton ${!date ? 'selected' : ''}`}
+					onClick={() => {
+						if (!date) {
+							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: new Date() });
+						} else {
+							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: null });
+						}
+					}}
+					>
+					Forever
+				</button>
+			}
 			<ErrorInfoButton {...errorInfo} />
 		</div>
 	)
@@ -266,11 +280,11 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 				<div className="navBlock">
 					<strong>Until</strong>
 					<InteractiveTime
-						text={'End'}
+						text={'Until'}
 						objKey={'schedules'}
 						schedIdx={editSchedule}
 						fieldKey={'until'}
-						date={new Date(schedule.until)}
+						date={schedule.until ? new Date(schedule.until) : schedule.until}
 						reduceComposite={reduceComposite}
 						errorInfo={{ errID: "until", err: errors?.until?.err }}
 						syncStartAndEnd={syncStartAndEnd}
@@ -311,9 +325,10 @@ const SchedulePreview = ({ schedules, reduceComposite, setEditSchedule }) => {
 								<strong className="formCell">Repeat:</strong>
 								<p className="formCell">Every</p>
 								{rule.interval > 1 ?
-									<p className="formCell">{rule.interval} {periodOptions.find((opt) => opt.value === rule.period)?.altDisplay || 'No Alt Display?'}s</p>
-									: <p className="formCell">{periodOptions.find((opt) => opt.value === rule.period)?.altDisplay || 'No Alt Display?'}</p>
-								}
+									<p className="formCell">{rule.interval}{periodOptions.find((opt) => opt.value === rule.period)?.altDisplay}s</p>
+									: <p className="formCell">{periodOptions.find((opt) => opt.value === rule.period)?.altDisplay}</p>
+								}		
+								{rule.until && <p className="formCell">until {viewFriendlyDateTime(rule.until)}</p>}
 							</div>
 						}
 					</div>

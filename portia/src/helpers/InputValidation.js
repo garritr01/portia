@@ -140,7 +140,7 @@ export const validateSchedule = (sched) => {
 		endStamp: ['date'],
 		period: ['string'],
 		interval: ['number', numberCheck],
-		until: ['undefined', 'date'],
+		until: ['null', 'date'],
 		tz: ['any', tzCheck],
 	}
 
