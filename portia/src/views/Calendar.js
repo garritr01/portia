@@ -28,6 +28,18 @@ import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
 import { Floater } from '../components/Portal';
 
+const colors = [
+	"#b82323",
+	"#bcc510",
+	"#10c51c",
+	"#10c5a4",
+	"#107ac5",
+	"#6e10c5",
+	"#c510b0",
+	"#c5108f",
+	"#000000",
+];
+
 export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
 	const months = returnDates(selectedDate, 'year');
 	const year = selectedDate.getFullYear();
@@ -112,10 +124,18 @@ export const DayView = ({
 	//useEffect(() => console.log('forms', forms), [forms]);
 	//useEffect(() => console.log('schedules', schedules), [schedules]);
 	//useEffect(() => console.log('recurs', recurs), [recurs]);
-	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])),[events]);
-	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])),[forms]);
-	const recursMemo = useMemo(() => [ ...recurs ],[recurs]);
-	const schedulesMemo = useMemo(() => [ ...schedules ],[schedules]);
+	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])), [events]);
+	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])), [forms]);
+	const recursMemo = useMemo(() => [ ...recurs ], [recurs]);
+	const schedulesMemo = useMemo(() => [ ...schedules ], [schedules]);
+
+	const uniqueLeadingDirs = [ ...new Set(forms.map(f => f.path.split('/')[0])) ];
+	const colorScheme = Object.fromEntries(
+		uniqueLeadingDirs.map((lDir, idx) => {
+			const color = colors[idx % (colors.length)];
+			return [lDir, color];
+		})
+	);
 	
 	// Autofill form, event, schedules based on event or recur click
 	useEffect(() => {
@@ -195,6 +215,7 @@ export const DayView = ({
 			console.error("Selection doesn't match recur or event");
 			reduceComposite({ type: 'reset' });
 		}
+
 	}, [showForm, eventsMemo, formsMemo, schedulesMemo, recursMemo]);
 
 	// --- DATE HANDLERS -------------------------------------------------------
@@ -461,7 +482,7 @@ export const DayView = ({
 									<React.Fragment key={item._id}>
 										<span
 											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'}`} 
-											style={formatting[jdx].line}
+											style={{ ...formatting[jdx].line, borderColor: colorScheme[item.path.split('/')[0]] }}
 										/>
 										<div className={`${(item?.isRecur || !item.complete) ? 'recurRow' : 'eventRow'} formRow`} style={formatting[jdx].row}>
 											{(item?.isRecur || !item?.complete) &&
@@ -471,14 +492,16 @@ export const DayView = ({
 													{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
 												</p>
 											}
-											<button className="relButton" onClick={() => {
-												if (item.isRecur) {
-													createCompositeFromRecur(item);
-													setShowForm({ _id: 'new' }); // click recur case
-												} else {
-													setShowForm({ _id: item._id }); // click event case
-												}
-											}}>
+											<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
+												onClick={() => {
+													if (item.isRecur) {
+														createCompositeFromRecur(item);
+														setShowForm({ _id: 'new' }); // click recur case
+													} else {
+														setShowForm({ _id: item._id }); // click event case
+													}
+												}}
+												>
 												{item.path.split('/')[item.path.split('/').length - 1]}
 											</button>
 											{(!item?.isRecur && item?.complete) &&
