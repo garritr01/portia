@@ -128,6 +128,8 @@ export const DayView = ({
 	const recursMemo = useMemo(() => [ ...recurs ], [recurs]);
 	const schedulesMemo = useMemo(() => [ ...schedules ], [schedules]);
 
+	// Styling constants
+	const eventDisplayPad = 4;
 	const uniqueLeadingDirs = [ ...new Set(forms.map(f => f.path.split('/')[0])) ];
 	const colorScheme = Object.fromEntries(
 		uniqueLeadingDirs.map((lDir, idx) => {
@@ -287,7 +289,7 @@ export const DayView = ({
 								<div className="dayContentLarge" id="dayContentLarge_target">
 									<div className='hourSpan' id="hourSpanLarge_target">
 										<div className="hourLine"/>
-										<div id="time_target">0:00</div>
+										<div id="time_target">00:00</div>
 									</div>
 								</div>
 							</div>
@@ -307,7 +309,7 @@ export const DayView = ({
 								<div className="dayContentSmall" id="dayContentSmall_target">
 									<div className='hourSpan' id="hourSpanSmall_target">
 										<div className="hourLine" />
-										<div>0:00</div>
+										<div>00:00</div>
 									</div>
 								</div>
 							</div>
@@ -315,7 +317,7 @@ export const DayView = ({
 								<div className="dayContentLarge" id="dayContentLarge_target">
 									<div className='hourSpan' id="hourSpanLarge_target">
 										<div className="hourLine" />
-										<div id="time_target">0:00</div>
+										<div id="time_target">00:00</div>
 									</div>
 								</div>
 							</div>
@@ -399,14 +401,13 @@ export const DayView = ({
 			const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
 			const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
 
-			const translateLine = onRight ? -(8 * indents + timeWidth) : 8 * indents;
-			const translateRow = onRight ? translateLine - 8 : translateLine + 8;
+			const translateLine = onRight ? -(eventDisplayPad * indents + timeWidth) : eventDisplayPad * indents;
+			const translateRow = onRight ? translateLine - 2 * eventDisplayPad : translateLine + 2 * eventDisplayPad;
 			const rowWidth = onRight ? translateRow - hourSpanWidth : hourSpanWidth - translateRow;
-			console.log(item.path, date, hourSpanWidth, translateRow, rowWidth);
 
 			const line = {
 				top: lineTop + 'px',
-				height: `${Math.max(lineBottom - lineTop, 4)}px`,
+				height: `${lineBottom - lineTop}px`,
 				transform: 'translateX(' + translateLine + 'px)'
 			}
 			if (onRight) {
@@ -450,11 +451,11 @@ export const DayView = ({
 								{hourFormatting.map((fmt, hr) =>
 									<div key={hr} className='hourSpan' style={fmt}>
 										<div className='hourLine'/>
-										<div>{hr}:00</div>
+										<div>{String(hr).padStart(2,'0')}:00</div>
 									</div>
 								)}
 								{daysEvents.map((item, jdx) => {
-									const lineStyle = { ...formatting[jdx].line, borderColor: colorScheme[item.path.split('/')[0]] };
+									const lineStyle = { ...formatting[jdx].line, '--line-color': colorScheme[item.path.split('/')[0]] };
 									const onRight = item?.isRecur || !item.complete;
 									const baseClass = `${onRight ? 'recur' : 'event'}`;
 									return (

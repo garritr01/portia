@@ -630,13 +630,13 @@ body,
 .eventSpan {
 	position: absolute;
 	flex-grow: 1;
-	border-left: 2px solid var(--border2);
+	border-left: 2px solid var(--line-color, var(--border2));
 }
 
 .recurSpan {
 	position: absolute;
 	flex-grow: 1;
-	border-right: 2px solid var(--border2);
+	border-right: 2px solid var(--line-color, var(--border2));
 }
 
 .recurRow, 
@@ -647,6 +647,46 @@ body,
 	white-space: nowrap;
 	flex-grow: 1;
 	gap: 0.25rem;
+}
+
+.eventSpan::before,
+.recurSpan::before, 
+.eventSpan::after,
+.recurSpan::after {
+	content: '';
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	border: 2px solid var(--line-color, var(--border2));
+	background-color: var(--line-color, var(--border2));
+	position: absolute;
+	right: 0;
+}
+
+.eventSpan::before,
+.recurSpan::before {
+	top: 0;
+}
+
+.eventSpan::after,
+.recurSpan::after {
+	bottom: 0;
+}
+
+.eventSpan::before {
+	transform: translate(calc(50% - 1px), -50%);
+}
+
+.recurSpan::before {
+	transform: translate(calc(50% + 1px), -50%);
+}
+
+.eventSpan::after {
+	transform: translate(calc(50% - 1px), 50%);
+}
+
+.recurSpan::after {
+	transform: translate(calc(50% + 1px), 50%);
 }
 
 .eventRow {
