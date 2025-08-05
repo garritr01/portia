@@ -2,16 +2,15 @@
 
 import React, { useState, useEffect, useMemo, useReducer } from 'react';
 import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
-import { v4 as uuid } from 'uuid';
 import { useScreen } from '../contexts/ScreenContext';
 import {
-	clamp,
 	returnDates,
 	addTime,
 	timeDiff,
 	normDate,
 	monthLength,
-	getDayOfWeek,
+	dateTimeRange,
+	weekdayAndDOTM,
 } from '../helpers/DateTimeCalcs';
 import { useCalendarDataHandler } from '../helpers/DataHandlers';
 import {
@@ -220,47 +219,8 @@ export const DayView = ({
 
 	// --- DATE HANDLERS -------------------------------------------------------
 	const month = selectedDate.toLocaleString('default', { month: 'long' });
-	const months = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
-	// Mobile date selection before applying new date
-	const [tempDate, setTempDate] = useState(new Date(selectedDate)); 
-	// For autofilling datetimes in form
 
-	// Guard against leap year
-	const handleYearChange = (newYear) => {
-		setTempDate(prev => {
-			const d = new Date(prev);
-			const desiredDay = d.getDate();
-			d.setDate(1);
-			d.setFullYear(newYear);
-			const daysInMonth = monthLength(d);
-			d.setDate(Math.min(desiredDay, daysInMonth));
-			return d;
-		});
-	};
-
-	// Guard against differing month lengths
-	const handleMonthChange = (newMonth) => {
-		setTempDate(prev => {
-			const d = new Date(prev);
-			const desiredDay = d.getDate();
-			d.setDate(1);
-			d.setMonth(newMonth);
-			const daysInMonth = monthLength(d);
-			d.setDate(Math.min(desiredDay, daysInMonth));
-			return d;
-		});
-	};
-
-	// Safe, only existing days in month present
-	const handleDayChange = (newDate) => {
-		setTempDate(prev => {
-			const d = new Date(prev);
-			d.setDate(newDate);
-			return d;
-		});
-	};
-
-		// Create composite based on recur
+	// Create composite based on recur
 	const createCompositeFromRecur = (recur) => {
 		const { isRecur, ...recurClean } = recur;
 		const newScheds = schedules.filter(s => s.path === recurClean.path);
@@ -290,230 +250,235 @@ export const DayView = ({
 		reduceComposite({ type: 'set', event: assignKeys(newEvent), form: assignKeys(newForm), schedules: newScheds });
 	};
 
-	return (
-		<>
-			{/** Calendar Navigation */}
-			{false && smallScreen ?
-				<div className="dateSelector">
-					<DropSelect
-						dropID={"navMonth"}
-						options={months.map((month, idx) => {
-							return {
-								display: month,
-								value: idx
-							};
-						})}
-						value={{ display: months[tempDate.getMonth()], value: tempDate.getMonth() }}
-						onChange={handleMonthChange}
-						/>
-					<DropSelect
-						dropID={"navDay"}
-						options={Array.from({ length: monthLength(tempDate) }, (_, idx) => {
-							return {
-								display: idx + 1,
-								value: idx + 1
-							};
-						})}
-						value={{ display: tempDate.getDate(), value: tempDate.getDate() }}
-						onChange={handleDayChange}
-						/>
-					<DropSelect
-						dropID={"navYear"}
-						options={Array.from({ length: 100 }, (_, idx) => {
-							return {
-								display: idx + 2000,
-								value: idx + 2000
-							};
-						})}
-						value={{ display: tempDate.getFullYear(), value: tempDate.getFullYear() }}
-						onChange={handleYearChange}
-						/>
-					<button onClick={() => onDayClick(tempDate, 'day')}>❯❯❯</button>
-				</div>
-				:
-				<div className="navigationBar">
-					<FiChevronsLeft className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')}/>
-					<button className="navButton" onClick={() => onDayClick(selectedDate, 'month')}>{month}</button>
-					<FiChevronsRight className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')}/>
-				</div>
+	// Initialize empty form for event, form, sched
+	const initEmptyEvent = (date) => {
+		reduceComposite({ type: 'reset' });
+		const clicked = new Date(date);
+		const current = new Date();
+		clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
+		reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
+		reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
+		setShowForm({ _id: 'new' });
+	}
+
+	// Format events for display in dayCell
+	const formatEvents = (date, isLarge) => {
+		// Filter out resolved schedules
+		const activeRecurs = recurs.filter(r => !events.some(e =>
+			e.scheduleID === r.scheduleID
+			&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
+		));
+		const daysEvents = [...events, ...activeRecurs].filter(item =>
+			(timeDiff(normDate(item.startStamp), date).days === 0)
+			|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
+		).sort((a, b) =>
+			new Date(a.startStamp) - new Date(b.startStamp)
+		);
+
+		// Get properties of relevant dummy elements for calculating absolute styles
+		let dayContentSnapshot;
+		let hourSpanWidth;
+		if (smallScreen) {
+			dayContentSnapshot = getDummyWithChildrenStyle(
+				<div className="container">
+					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
+						<div className="dayView">
+							<div className="dayCellLarge">
+								<div className="dayContentLarge" id="dayContentLarge_target">
+									<div className='hourSpan' id="hourSpanLarge_target">
+										<div className="hourLine"/>
+										<div id="time_target">0:00</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>,
+				['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
+			);
+			hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanLarge?.width + dayContentSnapshot?.hourSpanLarge?.paddingLeft);
+		} else {
+			dayContentSnapshot = getDummyWithChildrenStyle(
+				<div className="container">
+					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
+						<div className="dayView">
+							<div className="dayCellSmall" />
+							<div className="dayCellSmall"> 
+								<div className="dayContentSmall" id="dayContentSmall_target">
+									<div className='hourSpan' id="hourSpanSmall_target">
+										<div className="hourLine" />
+										<div>0:00</div>
+									</div>
+								</div>
+							</div>
+							<div className="dayCellLarge">
+								<div className="dayContentLarge" id="dayContentLarge_target">
+									<div className='hourSpan' id="hourSpanLarge_target">
+										<div className="hourLine" />
+										<div id="time_target">0:00</div>
+									</div>
+								</div>
+							</div>
+							<div className="dayCellSmall" />
+							<div className="dayCellSmall" />
+						</div>
+					</div>
+				</div>,
+				['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
+			);
+			if (isLarge) {
+				hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanLarge?.width + dayContentSnapshot?.hourSpanLarge?.paddingLeft);
+			} else {
+				hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanSmall?.width + dayContentSnapshot?.hourSpanSmall?.paddingLeft);
 			}
+		}
+		const hourHeight = Math.ceil(dayContentSnapshot?.hourSpanLarge?.height + dayContentSnapshot?.hourSpanLarge?.paddingTop + dayContentSnapshot?.hourSpanLarge?.paddingBottom);
+		const timeWidth = Math.ceil(dayContentSnapshot?.time?.width + dayContentSnapshot?.time?.paddingLeft + dayContentSnapshot?.time?.paddingRight);
+		const eventStyle = getDummyWithChildrenStyle(
+			<div className="eventRow formRow" id="eventRow_target">
+				<button className="relButton">
+					Sometext
+				</button>
+			</div>,
+			['height']
+		);
+		const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
+
+		// Accumulate the number of events in each hour
+		const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
+		const hourMembers = Array.from({ length: 24 }, () => []);
+		for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
+			const start = new Date(e.startStamp);
+			const hour = start.getHours();
+			hourMembers[hour].push({ start, path: e.path });
+		}
+
+		// Accumulate necessary formatting info for each hour label
+		let prevMemberHeight = overlapMembers.length * titleHeight;
+		const hourFormatting = [{ top: prevMemberHeight }];
+		for (let hr = 0; hr < 24; hr++) {
+			const prevHrHeight = (hr + 1) * hourHeight;
+			const numMem = hourMembers[hr].length;
+			prevMemberHeight += numMem > 0 ? numMem * titleHeight - hourHeight : 0;
+			hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
+		}
+
+		// Accumulate the necessary formatting info for each event/recur
+		const formatting = [];
+		let potLeftOverlaps = [];
+		let potRightOverlaps = [];
+		for (const item of daysEvents) {
+			const start = new Date(item.startStamp);
+			const end = new Date(item.endStamp);
+
+			const onRight = item?.isRecur || !item?.complete;
+
+			let indents;
+			if (onRight) {
+				potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp <= item.startStamp && potR.endStamp > item.startStamp)) // If starts before and ends during/after
+				potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
+				indents = potRightOverlaps.length;
+			} else {
+				potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp <= item.startStamp && potL.endStamp > item.startStamp)) // If starts before and ends during/after
+				potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
+				indents = potLeftOverlaps.length;
+			}
+
+			const topMembers = hourMembers[start.getHours()];
+			const topMemberSkips = topMembers.filter(mem =>
+				(mem.start < item.startStamp)
+				|| (timeDiff(mem.start, item.startStamp).minutes === 0 && mem.path < item.path)
+			).length;
+			const hourTop = hourFormatting[start.getHours()].top + hourHeight / 2;
+			const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
+			const lineTop = hourTop + (start.getMinutes() / 60) * topHourHeight;
+			const rowTop = hourTop + topMemberSkips * titleHeight;
+
+			const bottomMembers = hourMembers[end.getHours()];
+			const hourBottom = hourFormatting[end.getHours()].top + hourHeight / 2;
+			const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
+			const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
+
+			const translateLine = onRight ? -(8 * indents + timeWidth) : 8 * indents;
+			const translateRow = onRight ? translateLine - 8 : translateLine + 8;
+			const rowWidth = onRight ? translateRow - hourSpanWidth : hourSpanWidth - translateRow;
+			console.log(item.path, date, hourSpanWidth, translateRow, rowWidth);
+
+			const line = {
+				top: lineTop + 'px',
+				height: `${Math.max(lineBottom - lineTop, 4)}px`,
+				transform: 'translateX(' + translateLine + 'px)'
+			}
+			if (onRight) {
+				line.right = '0';
+			}
+			const row = {
+				top: rowTop + 'px',
+				transform: 'translateX(' + translateRow + 'px)',
+				width: rowWidth + 'px'
+			}
+
+			//console.log('line', line);
+			formatting.push({ row, line });
+		}
+
+		return { daysEvents, formatting, colorScheme, hourFormatting }
+	}
+
+	return (
+		<React.Fragment>
+			{/** Calendar Navigation */}
+			<div className="navigationBar">
+				{!smallScreen && <FiChevronsLeft className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')}/>}
+				<button className="navButton" onClick={() => onDayClick(selectedDate, 'month')}>{month}</button>
+				{!smallScreen && <FiChevronsRight className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')}/>}
+			</div>
 			<div className="dayView">
 				{days.map((date, idx) => {
-					// Filter out resolved schedules
-					const activeRecurs = recurs.filter(r =>!events.some(e => 
-						e.scheduleID === r.scheduleID 
-						&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
-					));
-					const daysEvents = [ ...events, ...activeRecurs ].filter(item => 
-						(timeDiff(normDate(item.startStamp), date).days === 0)
-						|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
-					).sort((a, b) => 
-						new Date(a.startStamp) - new Date(b.startStamp)
-					);
-
-					const hourSpanSnapshot = getDummyWithChildrenStyle(
-						<div className='hourSpan' id="hourSpan_target">
-							<div id="time_target">00:00</div>
-						</div>, 
-						['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
-					);
-					const hourHeight = Math.ceil(hourSpanSnapshot?.hourSpan?.height + hourSpanSnapshot?.hourSpan?.paddingTop + hourSpanSnapshot?.hourSpan?.paddingBottom);
-					const timeWidth = Math.ceil(hourSpanSnapshot?.time?.width + hourSpanSnapshot?.time?.paddingLeft + hourSpanSnapshot?.time?.paddingRight);
-					const eventStyle = getDummyWithChildrenStyle(
-						<div className="eventRow formRow" id="eventRow_target">
-							<button className="relButton">
-								Sometext
-							</button>
-						</div>,
-						['height']
-					);
-					const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
-					//console.log('hH', hourHeight);
-					//console.log('tH', titleHeight);
-
-					// Accumulate the number of events in each hour
-					const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
-					const hourMembers = Array.from({ length: 24 }, () => []);
-					for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
-						const start = new Date(e.startStamp);
-						const hour = start.getHours();
-						hourMembers[hour].push({ start, path: e.path });
-					}
-
-					// Accumulate necessary formatting info for each hour label
-					let prevMemberHeight = overlapMembers.length * titleHeight;
-					const hourFormatting = [{ top: prevMemberHeight }];
-					for (let hr = 0; hr < 24; hr++) {
-						const prevHrHeight = (hr + 1) * hourHeight;
-						const numMem = hourMembers[hr].length;
-						prevMemberHeight += numMem > 0 ? numMem * titleHeight - hourHeight : 0;
-						hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
-					}
-
-					if (date.getDate() === 20) {console.log(hourFormatting)}
-					
-					// Accumulate the necessary formatting info for each event/recur
-					const formatting = [];
-					let potLeftOverlaps = [];
-					let potRightOverlaps = [];
-					for (const item of daysEvents) {
-						const start = new Date(item.startStamp);
-						const end = new Date(item.endStamp);
-						
-						let indents;
-						if (item?.isRecur || !item?.complete) {
-							potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp <= item.startStamp && potR.endStamp >= item.startStamp)) // If starts before and ends during/after
-							potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
-							indents = potRightOverlaps.length;
-						} else {
-							potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp <= item.startStamp && potL.endStamp >= item.startStamp)) // If starts before and ends during/after
-							potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
-							indents = potLeftOverlaps.length;
-						}
-
-						const topMembers = hourMembers[start.getHours()];
-						const topMemberSkips = topMembers.filter(mem =>
-							(mem.start < item.startStamp)
-							|| (timeDiff(mem.start, item.startStamp).minutes === 0 && mem.path < item.path)
-						).length;
-						const hourTop = hourFormatting[start.getHours()].top + hourHeight/2;
-						const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
-						const lineTop = hourTop + (start.getMinutes() / 60) * topHourHeight;
-						const rowTop = hourTop + topMemberSkips * titleHeight;
-						//console.log('titleHeightPadded', titleHeight)
-
-						const bottomMembers = hourMembers[end.getHours()];
-						const hourBottom = hourFormatting[end.getHours()].top + hourHeight/2;
-						const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
-						const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
-
-						//console.log(date, item.path, '\ntopMembers:', topMembers, '\ntopMemberSkips:', topMemberSkips, '\nhourTop:', hourTop, '\nlineTop:', lineTop, '\nrowTop:', rowTop, '\nbottomMembers:', bottomMembers, '\nhourBottom:', hourBottom, '\nlineBottom:', lineBottom);
-
-						const translateLine = (item?.isRecur || !item?.complete) ? -(8 * indents + timeWidth) : 8 * indents;
-						const translateRow = (item?.isRecur || !item?.complete) ? translateLine -8 : translateLine + 8;
-						//if (item.path.endsWith('drugs')) { console.log(translateX, '= -8 * ', indents, ' + ', eventStyle?.eventSpan?.paddingRight, ' + ', timeWidth) }
-						
-						const line = { 
-							top: lineTop + 'px', 
-							height: `${Math.max(lineBottom - lineTop, 4)}px`, 
-							transform: 'translateX(' + translateLine + 'px)' 
-						}
-						if (item?.isRecur || !item?.complete) {
-							line.right = '0';
-						}
-						const row = { 
-							top: rowTop + 'px', 
-							transform: 'translateX(' + translateRow + 'px)' 
-						}
-
-						//console.log('line', line);
-						formatting.push({ row, line });
-					}
-
+					const isLarge = smallScreen ? true : (idx === 2);
+					const { daysEvents, formatting, colorScheme, hourFormatting } = formatEvents(date, isLarge);
 					return (
-						<div key={date.getTime()} className={idx === 2 ? 'dayCellLarge' : 'dayCellSmall'}>
+						<div key={date.getTime()} id={date.toISOString()} className={isLarge ? 'dayCellLarge' : 'dayCellSmall'}>
 							<div
-								className={idx === 2 ? 'dayTitleLarge' : 'dayTitleSmall'}
+								className={isLarge ? 'dayTitleLarge' : 'dayTitleSmall'}
 								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
 								>
-								<span>
-									{date.toLocaleDateString('default', { weekday: 'short' })}
-									{' '}
-									{date.toLocaleDateString('default', { day: 'numeric' })}
-								</span>
-								<FiPlus className="relButton" onClick={() => {
-									reduceComposite({ type: 'reset' });
-									const clicked = new Date(date);
-									const current = new Date();
-									clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
-									reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
-									reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
-									setShowForm({ _id: 'new' });
-								}} />
+								<span>{weekdayAndDOTM(date)}</span>
+								<FiPlus className="relButton" onClick={() => initEmptyEvent(date)} />
 							</div>
-							<div className={idx === 2 ? 'dayContentLarge' : 'dayContentSmall'}>
+							<div className={isLarge ? 'dayContentLarge' : 'dayContentSmall'}>
 								{hourFormatting.map((fmt, hr) =>
 									<div key={hr} className='hourSpan' style={fmt}>
 										<div className='hourLine'/>
 										<div>{hr}:00</div>
 									</div>
 								)}
-								{daysEvents.map((item, jdx) => 
-									<React.Fragment key={item._id}>
-										<span
-											className={`${(item?.isRecur || !item.complete) ? 'recurSpan' : 'eventSpan'}`} 
-											style={{ ...formatting[jdx].line, borderColor: colorScheme[item.path.split('/')[0]] }}
-										/>
-										<div className={`${(item?.isRecur || !item.complete) ? 'recurRow' : 'eventRow'} formRow`} style={formatting[jdx].row}>
-											{(item?.isRecur || !item?.complete) &&
-												<p className="sep">
-													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-													-
-													{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-												</p>
-											}
-											<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
-												onClick={() => {
-													if (item.isRecur) {
-														createCompositeFromRecur(item);
-														setShowForm({ _id: 'new' }); // click recur case
-													} else {
-														setShowForm({ _id: item._id }); // click event case
-													}
-												}}
-												>
-												{item.path.split('/')[item.path.split('/').length - 1]}
-											</button>
-											{(!item?.isRecur && item?.complete) &&
-												<p className="sep">
-													{new Date(item.startStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-													-
-													{new Date(item.endStamp).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false })}
-												</p>
-											}
-										</div>
-									</React.Fragment>
-								)}
+								{daysEvents.map((item, jdx) => {
+									const lineStyle = { ...formatting[jdx].line, borderColor: colorScheme[item.path.split('/')[0]] };
+									const onRight = item?.isRecur || !item.complete;
+									const baseClass = `${onRight ? 'recur' : 'event'}`;
+									return (
+										<React.Fragment key={item._id}>
+											<span className={`${baseClass}Span`} style={lineStyle} />
+											<div className={`${baseClass}Row formRow`} style={formatting[jdx].row}>
+												{onRight && <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p> }
+												<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
+													onClick={() => {
+														if (item.isRecur) {
+															createCompositeFromRecur(item);
+															setShowForm({ _id: 'new' }); // click recur case
+														} else {
+															setShowForm({ _id: item._id }); // click event case
+														}
+													}}
+													>
+													{item.path.split('/')[item.path.split('/').length - 1]}
+												</button>
+												{!onRight && <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p> }
+											</div>
+										</React.Fragment>
+									);
+								})}
 							</div>
 						</div>
 					)
@@ -531,7 +496,7 @@ export const DayView = ({
 					</Floater>
 				}
 			</div>
-		</>
+		</React.Fragment>
 	);
 };
 

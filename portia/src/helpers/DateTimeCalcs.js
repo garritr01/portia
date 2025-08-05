@@ -203,6 +203,22 @@ export const returnDates = (baseDate, view) => {
 	return [];
 };
 
+// #region ---- DATE/TIME DISPLAY STRING CREATORS --------------------------
+
+export const dateTimeRange = (start, end) => {
+	const startString = new Date(start).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
+	const endString = new Date(end).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
+	return `${startString}-${endString}`;
+}
+
+export const weekdayAndDOTM = (date) => {
+	const weekday = date.toLocaleDateString('default', { weekday: 'short' });
+	const dotm = date.toLocaleDateString('default', { day: 'numeric' });
+	return `${weekday}\u00A0${dotm}`;
+}
+
+// #endregion
+
 // #region ---- DATE/TIME FORMAT CONVERTERS --------------------------------
 
 // Convert js date to parts for user editing
@@ -374,8 +390,6 @@ export const getOccurances = (rRule, start, end) => {
 	return adjRRule.between(start, end, true);
 }
 
-// #endregion
-
 export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 	const filteredRecurs = allRecurs.filter((recur) => !schedules.some(s => s._id === recur._id));
 	schedules.forEach(sched => {
@@ -406,3 +420,5 @@ export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
 	});
 	return filteredRecurs;
 }
+
+// #endregion
