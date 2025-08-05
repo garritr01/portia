@@ -13,7 +13,7 @@ export const makeEmptyEvent = () =>  ({
 	path: '',
 	scheduleStart: null, // Store the schedule instance's timestamp (for omitting schedule on calendar)
 	info: [],
-	complete: false,
+	complete: 'pending',
 	startStamp: new Date(), // Define start time of event
 	endStamp: new Date(),
 });
@@ -64,7 +64,7 @@ export const updateComposite = (state, action) => {
 	// Check for deleted schedules. Just pay attention to logs and maybe figure out why
 	Object.entries(state.dirty.schedules).forEach(([id, isDirty]) => {
 		if (!state.schedules.some(s => s._id === id)) {
-			console.log(`Schedule with ${id} isDirty? ${isDirty}`);
+			console.log(`Absent schedule ${id} isDirty? ${isDirty}`);
 		}
 	});
 	if (action.type === 'reset') {

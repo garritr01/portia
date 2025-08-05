@@ -104,7 +104,7 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 				}
 				// Handle ending sync
 				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: false })) } 
-				if (fieldKey === 'until') { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) } 
+				if (fieldKey === 'until') { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) }
 			} else {
 				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
 			}
@@ -163,8 +163,10 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 					className={`relButton ${!date ? 'selected' : ''}`}
 					onClick={() => {
 						if (!date) {
+							setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: true }));
 							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: new Date() });
 						} else {
+							setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false }));
 							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: null });
 						}
 					}}
@@ -697,7 +699,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	*/
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);	
+	//useEffect(() => console.log("event:\n", event), [event]);		
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -980,21 +982,29 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 			{ /** COMPLETION INDICATOR */}
 			<div className="navRow">
-				<p className="sep">Complete</p>
+				<p className="sep">Status</p>
 				<div className="navCell">
 					<button 
-						className={`relButton ${event.complete && 'selected'}`}
-						onClick={() => !event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: true })}
+						className={`relButton ${event.complete === 'pending' && 'selected'}`}
+						onClick={() => event.complete !== 'pending' && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: 'pending' })}
 						>
-						Yes
+						Pending
 					</button>
 				</div>
 				<div className="navCell">
 					<button
-						className={`relButton ${!event.complete && 'selected'}`}
-						onClick={() => event.complete && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: false })}
+						className={`relButton ${event.complete === 'done' && 'selected'}`}
+						onClick={() => event.complete !== 'done' && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: 'done' })}
 						>
-						No
+						Done
+					</button>
+				</div>
+				<div className="navCell">
+					<button
+						className={`relButton ${event.complete === 'skipped' && 'selected'}`}
+						onClick={() => event.complete !== 'skipped' && reduceComposite({ type: 'drill', path: ['event', 'complete'], value: 'skipped' })}
+						>
+						Skipped
 					</button>
 				</div>
 			</div>

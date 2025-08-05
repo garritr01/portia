@@ -373,7 +373,7 @@ export const DayView = ({
 			const start = new Date(item.startStamp);
 			const end = new Date(item.endStamp);
 
-			const onRight = item?.isRecur || !item?.complete;
+			const onRight = item?.isRecur || item.complete === 'pending';
 
 			let indents;
 			if (onRight) {
@@ -456,7 +456,7 @@ export const DayView = ({
 								)}
 								{daysEvents.map((item, jdx) => {
 									const lineStyle = { ...formatting[jdx].line, '--line-color': colorScheme[item.path.split('/')[0]] };
-									const onRight = item?.isRecur || !item.complete;
+									const onRight = item?.isRecur || item.complete === 'pending';
 									const baseClass = `${onRight ? 'recur' : 'event'}`;
 									return (
 										<React.Fragment key={item._id}>

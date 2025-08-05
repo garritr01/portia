@@ -120,7 +120,7 @@ export const validateEvent = (event) => {
 			placeholder: ['string'],
 			suggestions: ['string'],
 		},
-		complete: ['boolean'],
+		complete: ['string'],
 		startStamp: ['date'],
 		endStamp: ['date'],
 	}
