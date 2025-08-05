@@ -236,24 +236,27 @@ export const DayView = ({
 			_id: null,
 			formID: newForm._id,
 			scheduleStart: recurClean.startStamp,
-			info: newForm.info.map(f => ({
-				...f,
-				content: 
-					f.type === 'input' ? (
-						f.baseValue ? [f.baseValue] : ['']
-					) 
-					: f.type === 'text' ? (
-						f.baseValue ? f.baseValue : ''
-					) 
-					: null
-			}))
+			info: newForm.info.map(f => {
+				const { suggestions, ...cleanF } = f;
+				return({ 
+					...f,
+					content: 
+						f.type === 'input' ? (
+							f.baseValue ? [f.baseValue] : ['']
+						) 
+						: f.type === 'text' ? (
+							f.baseValue ? f.baseValue : ''
+						) 
+						: null
+					});
+			})
 		};
 		console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
 		reduceComposite({ type: 'set', event: assignKeys(newEvent), form: assignKeys(newForm), schedules: newScheds });
 	};
 
 	// Initialize empty form for event, form, sched
-	const initEmptyEvent = (date) => {
+	const initEmptyComposite = (date) => {
 		reduceComposite({ type: 'reset' });
 		const clicked = new Date(date);
 		const current = new Date();
@@ -445,7 +448,7 @@ export const DayView = ({
 								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
 								>
 								<span>{weekdayAndDOTM(date)}</span>
-								<FiPlus className="relButton" onClick={() => initEmptyEvent(date)} />
+								<FiPlus className="relButton" onClick={() => initEmptyComposite(date)} />
 							</div>
 							<div className={isLarge ? 'dayContentLarge' : 'dayContentSmall'}>
 								{hourFormatting.map((fmt, hr) =>
