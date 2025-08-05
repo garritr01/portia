@@ -32,7 +32,7 @@ const mergeByID = (all, updated) => {
 	}
 };
 
-export const useCalendarDataHandler = (startDate, endDate, setShowForm) => {
+export const useCalendarDataHandler = (startDate, endDate, setShowForm, reduceComposite) => {
 	const { user } = useUser();
 	const save = useSave();
 	const fetchEvents = useFetchEvents(startDate, endDate);
@@ -119,6 +119,7 @@ export const useCalendarDataHandler = (startDate, endDate, setShowForm) => {
 				setSchedules((prev) => mergeByID(prev, newSchedules));
 				setRecurs((prev) => getAllRecurs(newSchedules, startDate, endDate, prev));
 				setShowForm({ _id: null });
+				reduceComposite({ type: 'reset' });
 
 				return saved;
 			} catch (e) {

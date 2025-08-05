@@ -34,6 +34,7 @@ export const initialCompositeState = {
 	schedules: [],
 	dirty: { form: false, event: false, schedules: {} },
 	errors: { form: {}, event: {}, schedules: {} },
+	delete: { form: [], event: [], schedules: [] }
 };
 
 // Recursive composite update helper

@@ -601,7 +601,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 
 export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
-	const { form, event, schedules, errors } = composite;
+	const { form, event, schedules, dirty, errors } = composite;
 	const [pendingSave, setPendingSave] = useState(false);
 	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]);
 	const [editSchedule, setEditSchedule] = useState(null);
@@ -1063,9 +1063,24 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 					}
 					}}/>
 				{/** Blur so value is committed on save */}
-				<FiCheckCircle className="submitButton" onMouseDown={() => document.activeElement.blur()} onClick={() => handleUpsert(false)}/>
-				<FiSave className="submitButton" onMouseDown={() => document.activeElement.blur()} onClick={() => handleUpsert(true)}/>
-				<FiX className="submitButton add" onClick={() => setShowForm({ _id: null })}/>
+				<FiCheckCircle className="submitButton" 
+					onMouseDown={() => document.activeElement.blur()} 
+					onClick={() => {
+						handleUpsert(false);
+					}}
+					/>
+				<FiSave className="submitButton" 
+					onMouseDown={() => document.activeElement.blur()} 
+					onClick={() => {
+						handleUpsert(true);
+					}}
+					/>
+				<FiX className="submitButton add" 
+					onClick={() => {
+						reduceComposite({ type: 'reset' });
+						setShowForm({ _id: null });
+					}}
+					/>
 			</div>
 
 		</div>

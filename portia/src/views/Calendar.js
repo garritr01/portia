@@ -118,7 +118,7 @@ export const DayView = ({
 	const [showForm, setShowForm] = useState({ _id: null });
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
-	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm);
+	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm, reduceComposite);
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
 	//useEffect(() => console.log('schedules', schedules), [schedules]);
@@ -157,7 +157,7 @@ export const DayView = ({
 					newForm = makeEmptyForm();
 				}
 
-				if (!newEvent.complete && newForm.includeStart) {
+				if (newEvent.complete === 'pending' && newForm.includeStart) {
 					newEvent.endStamp = new Date();
 				}
 
@@ -168,43 +168,7 @@ export const DayView = ({
 				}
 
 				reduceComposite({
-					type: 'update',
-					event: assignKeys(newEvent),
-					form: assignKeys(newForm),
-					schedules: newSchedules,
-				});
-				return;
-			}
-
-			// Autofill based on recurrence instance and associated schedule
-			const recurSched = schedulesMemo.find(sched => showForm._id === sched._id);
-			if (recurSched) {
-				// Should always be found 
-				let newSchedules = schedulesMemo.filter(rule => recurSched.path === rule.path);
-				if (!newSchedules) {
-					console.error(`schedule not found from selected recur's schedule's path: ${recurSched.path}`);
-					newSchedules = [makeEmptySchedule()];
-				}
-
-				// Should always be found
-				let newForm = formsMemo[newSchedules[0].formID]; // Should all be the same formID
-				if (!newForm) {
-					console.error(`Form not found from schedule's formID: ${newSchedules[0].formID}`);
-					newForm = makeEmptyForm();
-				}
-
-				newEvent = { 
-					...makeEmptyEvent(),
-					scheduleID: showForm._id,
-					scheduleStart: showForm.startStamp,
-					startStamp: showForm.startStamp,
-					endStamp: showForm.endStamp,
-				};
-
-				console.log("Opening event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
-
-				reduceComposite({
-					type: 'update',
+					type: 'set',
 					event: assignKeys(newEvent),
 					form: assignKeys(newForm),
 					schedules: newSchedules,
