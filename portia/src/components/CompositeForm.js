@@ -530,10 +530,10 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 									<div id={`${inp.key}`} className={errors?.event?.info?.[idx]?.content?.[inpIdx]?.value?.err ? "navCell erred" : "navCell"}>
 										<DropSelect
 											dropHeaderID={`${inp.key}Input`}
-											options={form.info[idx].suggestions.map(sugg => ({ display: sugg, value: sugg }))}
+											options={form.info[idx].suggestions.sort((a, b) => a.localeCompare(b)).map(sugg => ({ display: sugg, value: sugg }))}
 											value={{ display: inp.value, value: inp.value }}
 											setter={newVal => {
-												changeField(['form', 'info', idx, 'content', inpIdx, 'value'], newVal);
+												changeField(['event', 'info', idx, 'content', inpIdx, 'value'], newVal);
 											}}
 											allowType={true}
 											realtimeUpdate={true}
@@ -699,7 +699,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	*/
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);		
+	//useEffect(() => console.log("event:\n", event), [event]);		
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -811,11 +811,10 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 					newEntries.push(entry.value);
 				}
 			})
-			if (newEntries.length > 0) {
-				console.log(`Adding new suggestions for field ${idx}:`, newEntries);
-				console.log('Will look like:', [ ...form.info[idx].suggestions, ...newEntries]);
-				reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'suggestions'], value: [ ...form.info[idx].suggestions, ...newEntries] });
-			}
+			console.log(`Adding new suggestions for field ${idx}:`, newEntries);
+			console.log('Will look like:', [ ...form.info[idx].suggestions, ...newEntries]);
+			const uniqueEntries = [ ...new Set([...form.info[idx].suggestions, ...newEntries]) ];
+			reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'suggestions'], value: uniqueEntries });
 		})
 	}
 
