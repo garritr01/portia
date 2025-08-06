@@ -6,7 +6,17 @@ import { measureTextWidth } from '../helpers/Measure';
 import { ErrorInfoButton } from './Notifications';
 
 /** Finite pseudo-rolling drop select */
-export const DropSelect = ({ options = [], value, setter, allowType = false, numericOnly = false, realtimeUpdate = false, errorInfo, dropHeaderID }) => {
+export const DropSelect = ({ 
+	options = [], 
+	value, 
+	setter,
+	errorInfo, 
+	dropHeaderID,
+	placeholder = '',
+	allowType = false, 
+	numericOnly = false, 
+	realtimeUpdate = false, 
+}) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 
@@ -41,7 +51,7 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 	useEffect(() => {
 		if (!headRef.current) { return }
 		const style = window.getComputedStyle(headRef.current);
-		const maxWidth = [ ...options, value].reduce((max, opt) => Math.max(max, measureTextWidth(opt.display, style)), 0);
+		const maxWidth = [ ...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt.display, style)), 0);
 		setWidth(maxWidth);
 	}, [options, value]);
 
@@ -101,12 +111,24 @@ export const DropSelect = ({ options = [], value, setter, allowType = false, num
 			numericOnly={numericOnly}
 			errorInfo={errorInfo}
 			dropHeaderID={dropHeaderID}
+			placeholder={placeholder}
 		/>
 	);
 }
 
 /** Infinite numerical drop select */
-export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, setter, allowType = false, realtimeUpdate = false, errorInfo, dropHeaderID }) => {
+export const InfDropSelect = ({ 
+	min = -9999, 
+	max = 9999, 
+	buffer = 10, 
+	value, 
+	setter,
+	errorInfo, 
+	dropHeaderID,
+	placeholder = '',
+	allowType = false, 
+	realtimeUpdate = false,
+}) => {
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 	// NOTE - .value is just so I can reuse the same DropView
@@ -197,6 +219,7 @@ export const InfDropSelect = ({ min = -9999, max = 9999, buffer = 10, value, set
 			numericOnly={true}
 			errorInfo={errorInfo}
 			dropHeaderID={dropHeaderID}
+			placeholder={placeholder}
 		/>
 	);
 }
@@ -226,7 +249,7 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 }
 
 /** Render the scrollable dropdown menu used by the DropSelects */
-const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID }) => {
+const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID, placeholder }) => {
 	const { smallScreen = false } = useScreen() || {};
 
 	//useEffect(() => console.log(`options ${dropHeaderID}`, options), []);
@@ -286,6 +309,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 				{/** Use an input if allowType */}
 				{allowType ?
 					<input
+						placeholder={placeholder}
 						value={rVal.display}
 						onChange={(e) => {
 							const val = numericOnly ? e.target.value.replace(/\D+/g, '') : e.target.value;
@@ -323,7 +347,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 							<div
 								key={idx}
 								className={`droption ${option.value === rVal.value ? "selected" : ""}`}
-								onClick={(e) => handleClose(option)}>
+								onClick={() => handleClose(option)}>
 								{option.display}
 							</div>
 						))}

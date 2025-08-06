@@ -12,9 +12,7 @@ export const assignKeys = (obj) => {
 		let copy = { ...obj };
 
 		// Transform any option and content arrays to contain uuids
-		if (copy?.type === 'mc' && Array.isArray(copy.options)) {
-			copy.options = copy.options.map(opt => !opt?.key ? ({ key: uuid(), value: opt }) : opt);
-		} else if (copy?.type === 'input' && Array.isArray(copy.content)) {
+		if (copy?.type === 'input' && Array.isArray(copy.content)) {
 			copy.content = copy.content.map(val => !val?.key ? ({ key: uuid(), value: val }) : val);
 		}
 

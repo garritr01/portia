@@ -499,7 +499,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 		reduceComposite({
 			type: 'drill',
 			path: ['event', 'info', idx, 'content'],
-			value: [...contentCopy, { value: '', key: uuid() }]
+			value: [...contentCopy, { value: form.info[idx].baseValue, key: uuid() }]
 		});
 	};
 
@@ -535,6 +535,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 											setter={newVal => {
 												changeField(['event', 'info', idx, 'content', inpIdx, 'value'], newVal);
 											}}
+											placeholder={form.info[idx].placeholder}
 											allowType={true}
 											realtimeUpdate={true}
 											errorInfo={{ errID: `${inp.key}`, err: errors?.event?.info?.[idx]?.content?.[inpIdx]?.value?.err }}
@@ -732,15 +733,16 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	const updateEventUI = (updatedFormInfo) => {
 		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
 			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
-			const { baseValue, suggestions, ...cleanedF } = f;
+			const { baseValue, suggestions, placeholder, ...cleanedF } = f;
 			if (prevEvent) {
 				return { ...cleanedF, content: prevEvent.content };
 			} else {
 				const emptyContent = 
-					(f.type === 'input') ? [baseValue ? baseValue : ''] 
-					: (f.type === 'text') ? '' 
-					: baseValue ? baseValue : null;
-				//console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
+					(f.type === 'input') ? [baseValue ? baseValue : '']
+					: (f.type === 'text') ? ''
+					: baseValue ? baseValue
+					: null;
+				console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
 				return { ...cleanedF, content: emptyContent }
 			}
 		});
