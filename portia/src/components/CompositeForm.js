@@ -194,7 +194,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 
 	return (
 		<div className="navBlock wButtonRow">
-			<strong>Schedule</strong>
+			<strong>New Schedule</strong>
 
 			{/** PERIOD */}
 			<div className="navRow">
@@ -700,6 +700,8 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
+	useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
+
 	// Handle dynamic path for form loading
 	useEffect(() => {
 		//console.log(`Finding suggested paths with:`, form.path);
@@ -750,14 +752,15 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	// Update schedules to include a new one autofilling based on previous or event timestamps
 	const handleCreateSchedule = () => {
-		setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: true }))
 		if (editSchedule === null) {
+			const lastSched = schedules.length > 0 ? schedules[schedules.length - 1] : null;
+			setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: lastSched.until ? true : false }))
 			setEditSchedule(schedules.length);
 			const newSchedule = {
 				...makeEmptySchedule(event.path),
-				startStamp: schedules.length > 0 ? schedules[schedules.length - 1].startStamp : event.startStamp,
-				endStamp: schedules.length > 0 ? schedules[schedules.length - 1].endStamp : event.endStamp,
-				until: schedules.length > 0 ? schedules[schedules.length - 1].until : event.endStamp
+				startStamp: lastSched ? lastSched.startStamp : event.startStamp,
+				endStamp: lastSched ? lastSched.endStamp : event.endStamp,
+				until: lastSched ? lastSched.until : event.endStamp
 			};
 			reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: newSchedule });
 		} else {

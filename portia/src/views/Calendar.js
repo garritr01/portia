@@ -214,7 +214,7 @@ export const DayView = ({
 					});
 			})
 		};
-		console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
+		//console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
 		reduceComposite({ type: 'set', event: assignKeys(newEvent), form: assignKeys(newForm), schedules: newScheds });
 	};
 

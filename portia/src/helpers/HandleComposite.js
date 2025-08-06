@@ -63,11 +63,11 @@ const setNested = (obj, path, value) => {
 // }
 export const updateComposite = (state, action) => {
 	// Check for deleted schedules. Just pay attention to logs and maybe figure out why
-	Object.entries(state.dirty.schedules).forEach(([id, isDirty]) => {
-		if (!state.schedules.some(s => s._id === id)) {
-			console.log(`Absent schedule ${id} isDirty? ${isDirty}`);
-		}
-	});
+	//Object.entries(state.dirty.schedules).forEach(([id, isDirty]) => {
+	//	if (!state.schedules.some(s => s._id === id)) {
+	//		console.log(`Absent schedule ${id} isDirty? ${isDirty}`);
+	//	}
+	//});
 	if (action.type === 'reset') {
 		return initialCompositeState;
 	} else if (action.type === 'drill') {
