@@ -122,7 +122,7 @@ export const DayView = ({
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
 	//useEffect(() => console.log('schedules', schedules), [schedules]);
-	//useEffect(() => console.log('recurs', recurs), [recurs]);
+	useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])), [events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])), [forms]);
 	const recursMemo = useMemo(() => [ ...recurs ], [recurs]);
@@ -201,15 +201,15 @@ export const DayView = ({
 			formID: newForm._id,
 			scheduleStart: recurClean.startStamp,
 			info: newForm.info.map(f => {
-				const { suggestions, ...cleanF } = f;
+				const { suggestions, baseValue, ...cleanF } = f;
 				return({ 
-					...f,
+					...cleanF,
 					content: 
 						f.type === 'input' ? (
-							f.baseValue ? [f.baseValue] : ['']
+							baseValue ? [baseValue] : ['']
 						) 
 						: f.type === 'text' ? (
-							f.baseValue ? f.baseValue : ''
+							baseValue ? baseValue : ''
 						) 
 						: null
 					});
@@ -239,10 +239,16 @@ export const DayView = ({
 		));
 		const daysEvents = [...events, ...activeRecurs].filter(item =>
 			(timeDiff(normDate(item.startStamp), date).days === 0)
-			|| (new Date(item.startStamp) < date && new Date(item.endStamp) > date)
-		).sort((a, b) =>
-			new Date(a.startStamp) - new Date(b.startStamp)
-		);
+			|| (item.startStamp < date && item.endStamp > date)
+		).sort((a, b) => {
+			const sDiff = a.startStamp - b.startStamp; // First order by start
+			if (sDiff !== 0) { return sDiff }
+			const eDiff = a.endStamp - b.endStamp; // Second order by end
+			if (eDiff !== 0) { return eDiff }
+			const pDiff = a.path.localeCompare(b.path); // Third order by path
+			if (pDiff !== 0) { return pDiff }
+			return a._id.localeCompare(b._id); // Last (Guaranteed different) order by ids
+		});
 
 		// Get properties of relevant dummy elements for calculating absolute styles
 		let dayContentSnapshot;
@@ -319,7 +325,7 @@ export const DayView = ({
 		for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
 			const start = new Date(e.startStamp);
 			const hour = start.getHours();
-			hourMembers[hour].push({ start, path: e.path });
+			hourMembers[hour].push({ start, end: e.endStamp, path: e.path, _id: e._id });
 		}
 
 		// Accumulate necessary formatting info for each hour label
@@ -337,27 +343,36 @@ export const DayView = ({
 		let potLeftOverlaps = [];
 		let potRightOverlaps = [];
 		for (const item of daysEvents) {
-			const start = new Date(item.startStamp);
-			const end = new Date(item.endStamp);
+			const start = item.startStamp;
+			const end = item.endStamp;
 
 			const onRight = item?.isRecur || item.complete === 'pending';
 
 			let indents;
 			if (onRight) {
-				potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp <= item.startStamp && potR.endStamp > item.startStamp)) // If starts before and ends during/after
+				potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp.getTime() < item.startStamp.getTime() && potR.endStamp.getTime() > item.startStamp.getTime())); // If starts before and ends during/after
 				potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
 				indents = potRightOverlaps.length;
 			} else {
-				potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp <= item.startStamp && potL.endStamp > item.startStamp)) // If starts before and ends during/after
+				potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp.getTime() < item.startStamp.getTime() && potL.endStamp.getTime() > item.startStamp.getTime())); // If starts before and ends during/after
 				potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
 				indents = potLeftOverlaps.length;
 			}
 
 			const topMembers = hourMembers[start.getHours()];
-			const topMemberSkips = topMembers.filter(mem =>
-				(mem.start < item.startStamp)
-				|| (timeDiff(mem.start, item.startStamp).minutes === 0 && mem.path < item.path)
-			).length;
+			const topMemberSkips = topMembers.filter(mem => {
+				if (mem.start < start) { return true }
+				if (mem.start.getTime() === start.getTime()) {
+					if (mem.end < end) { return true }
+					else if (mem.end.getTime() === end.getTime()) {
+						if (mem.path.localeCompare(item.path) < 0) { return true }
+						else if (mem.path === item.path) {
+							if (mem._id.localeCompare(item._id) < 0) { return true }
+						}
+					}
+				}
+				return false;
+			}).length;
 			const hourTop = hourFormatting[start.getHours()].top + hourHeight / 2;
 			const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
 			const lineTop = hourTop + (start.getMinutes() / 60) * topHourHeight;

@@ -27,7 +27,7 @@ const falseToTest = (value) => {
 const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
 	// Record location of check
 	const path = keys.join('->') || 'root';
-	//console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
+	console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
 	// allowed types is (non-array) object until checking types
 	const type = 
 		value === null ? 'null' :

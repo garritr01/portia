@@ -1,6 +1,7 @@
 # Usage Notes
 ## Bugs
 - Fix Weekly Scheduling?? (floss is hiding)
+- Updated schedules don't remove the old instance until reload of days
 ## UX Improvements
 - Add user settings, start with custom color scheme for calendar
 - Daily could include shortcut for no weekends or weekly could include shortcut for multiple days of the week
