@@ -695,7 +695,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	*/
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);		
+	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -747,6 +747,23 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			event: newEvent
 		})
 	};
+
+	// Update schedules to include a new one autofilling based on previous or event timestamps
+	const handleCreateSchedule = () => {
+		setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: true }))
+		if (editSchedule === null) {
+			setEditSchedule(schedules.length);
+			const newSchedule = {
+				...makeEmptySchedule(event.path),
+				startStamp: schedules.length > 0 ? schedules[schedules.length - 1].startStamp : event.startStamp,
+				endStamp: schedules.length > 0 ? schedules[schedules.length - 1].endStamp : event.endStamp,
+				until: schedules.length > 0 ? schedules[schedules.length - 1].until : event.endStamp
+			};
+			reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: newSchedule });
+		} else {
+			handleRevertSchedule();
+		}
+	}
 
 	// Reset to last committed state
 	const handleRevertSchedule = () => {
@@ -1036,21 +1053,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			<div className="submitRow right">
 				<FiCalendar
 					className={editSchedule === null ? "submitButton" : "submitButton selected"}
-					onClick={() => {
-						setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: true }))
-						if (editSchedule === null) {
-							setEditSchedule(schedules.length);
-							const newSchedule = {
-								...makeEmptySchedule(event.path),
-								startStamp: event.startStamp,
-								endStamp: event.endStamp,
-								until: event.endStamp
-							};
-							reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: newSchedule });
-						} else {
-							handleRevertSchedule();
-						}
-					}}/>
+					onClick={() => handleCreateSchedule() }/>
 				<FiFileText className={edit ? "submitButton selected" : "submitButton"} onClick={() => {
 					if (!edit) { 
 						setEdit(true); 
