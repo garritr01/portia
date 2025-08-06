@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext.js';
 import { useFetchEvents, useFetchForms, useFetchSchedules } from '../requests/CalendarData.js';
 import { useFetchChecklist } from '../requests/ChecklistData.js'; 
 import { useSave } from '../requests/General.js';
-import { getAllRecurs, timeStampsToDate } from './DateTimeCalcs';
+import { getAllRecurs, timeStampsToDates } from './DateTimeCalcs';
 
 const mergeByID = (all, updated) => {
 	// If they passed in an array, fold each element in turn
@@ -114,10 +114,13 @@ export const useCalendarDataHandler = (startDate, endDate, setShowForm, reduceCo
 				const saved = await save("events", "POST", payload);
 
 				setForms(prev => mergeByID(prev, saved.form));
-				setEvents(prev => mergeByID(prev, timeStampsToDate(saved.event)));
-				const newSchedules = saved.schedules.map((s) => (timeStampsToDate(s)));
+				setEvents(prev => mergeByID(prev, timeStampsToDates(saved.event)));
+				const newSchedules = saved.schedules.map((s) => (timeStampsToDates(s)));
 				setSchedules((prev) => mergeByID(prev, newSchedules));
-				setRecurs((prev) => getAllRecurs(newSchedules, startDate, endDate, prev));
+				setRecurs((prev) => [
+					...prev.filter(r => !newSchedules.some(s => s._id === r._id)), // Filter out old versions
+					...getAllRecurs(newSchedules, startDate, endDate) // Add recurs for new versions
+				]);
 				setShowForm({ _id: null });
 				reduceComposite({ type: 'reset' });
 

@@ -8,7 +8,6 @@ import {
 	addTime,
 	timeDiff,
 	normDate,
-	monthLength,
 	dateTimeRange,
 	weekdayAndDOTM,
 } from '../helpers/DateTimeCalcs';
@@ -122,7 +121,7 @@ export const DayView = ({
 	//useEffect(() => console.log('events', events), [events]);
 	//useEffect(() => console.log('forms', forms), [forms]);
 	//useEffect(() => console.log('schedules', schedules), [schedules]);
-	useEffect(() => console.log('recurs', recurs), [recurs]);
+	//useEffect(() => console.log('recurs', recurs), [recurs]);
 	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])), [events]);
 	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])), [forms]);
 	const recursMemo = useMemo(() => [ ...recurs ], [recurs]);

@@ -15,11 +15,7 @@ import {
 } from 'react-icons/fi';
 import { validateForm, validateEvent, validateSchedule } from '../helpers/InputValidation';
 import {
-	clamp,
-	returnDates,
 	addTime,
-	timeDiff,
-	normDate,
 	editFriendlyDateTime,
 	calcFriendlyDateTime,
 	viewFriendlyDateTime,
@@ -27,7 +23,6 @@ import {
 	weekdayOptions,
 	monthOptions,
 	monthLength,
-	getDayOfWeek,
 } from '../helpers/DateTimeCalcs';
 import { v4 as uuid } from 'uuid';
 import { dropKeys, assignKeys } from '../helpers/Misc';

@@ -1,6 +1,5 @@
 # Usage Notes
 ## Bugs
-- Fix Weekly Scheduling?? (floss is hiding)
 - Updated schedules don't remove the old instance until reload of days
 ## UX Improvements
 - Add user settings, start with custom color scheme for calendar

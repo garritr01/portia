@@ -1,6 +1,11 @@
-import { RRule, rrulestr } from 'rrule';
+import { RRule } from 'rrule';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { parseISO } from 'date-fns';
 import { v4 as uuid } from 'uuid';
 
+
+// Find user's timezone on load and generate recurrences accordingly
+export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 export const periodOptions = [
 	{ display: 'No Schedule', value: null, altDisplay: "None but this shouldn't appear" },
 	{ display: 'No Repeat', value: 'single', altDisplay: "Just once" },
@@ -34,12 +39,24 @@ export const monthOptions = [
 ];
 
 /* Convert predefined keys to Date objects */
-const timeStampKeys = ['startStamp', 'endStamp', 'until', 'scheduleStart'];
-export const timeStampsToDate = obj => {
+const timeStampKeys = ['startStamp', 'endStamp', 'until', 'scheduleStart']; // Define keys that could contain
+export const timeStampsToDates = (obj, convertFromUTC = true) => {
+	if (obj.tz === null) { convertFromUTC = false }
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>
 			timeStampKeys.includes(k) && v
-				? [k, new Date(v)]
+				? [k, convertFromUTC ? toZonedTime(parseISO(v), LOCAL_TZ) : parseISO(v)]
+				: [k, v]
+		)
+	);
+};
+
+export const datesToTimeStamps = (obj, convertToUTC = true) => {
+	if (obj.tz === null) { convertToUTC = false }
+	return Object.fromEntries(
+		Object.entries(obj).map(([k, v]) =>
+			timeStampKeys.includes(k) && v
+				? [k, convertToUTC ? fromZonedTime(v, obj.tz ?? LOCAL_TZ).toISOString() : v.toISOString()]
 				: [k, v]
 		)
 	);
@@ -56,7 +73,7 @@ export const sortChecklist = (checklist) => {
 		// 2. by last update, earlier (less recent) first
 		return new Date(a.updatedAt) - new Date(b.updatedAt);
 	});
-}
+};
 
 /**
  * - jsDate - js Date
@@ -164,7 +181,7 @@ export const normDate = (date) => {
 	const normedDate = new Date(date);
 	normedDate.setHours(0, 0, 0, 0);
 	return normedDate;
-}
+};
 
 /** Return the correct dates based on the view */
 export const returnDates = (baseDate, view) => {
@@ -203,22 +220,6 @@ export const returnDates = (baseDate, view) => {
 	return [];
 };
 
-// #region ---- DATE/TIME DISPLAY STRING CREATORS --------------------------
-
-export const dateTimeRange = (start, end) => {
-	const startString = new Date(start).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
-	const endString = new Date(end).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
-	return `${startString}-${endString}`;
-}
-
-export const weekdayAndDOTM = (date) => {
-	const weekday = date.toLocaleDateString('default', { weekday: 'short' });
-	const dotm = date.toLocaleDateString('default', { day: 'numeric' });
-	return `${weekday}\u00A0${dotm}`;
-}
-
-// #endregion
-
 // #region ---- DATE/TIME FORMAT CONVERTERS --------------------------------
 
 // Convert js date to parts for user editing
@@ -242,7 +243,7 @@ export const editFriendlyDateTime = (date) => {
 		minute: String(date.getMinutes()),
 		weekday: String(getDayOfWeek(date, false)),
 	}
-}
+};
 
 // Clamp value between min and max
 export const clamp = (v, min, max) => Math.min(Math.max(min, max), Math.max(min, v));
@@ -287,7 +288,7 @@ export const calcFriendlyDateTime = (unit, baseDate, updatedParts) => {
 	}
 
 	return upDate;
-}
+};
 
 // Convert js date to string for display
 export const viewFriendlyDateTime = (date, includeTZ = false) => {
@@ -301,79 +302,92 @@ export const viewFriendlyDateTime = (date, includeTZ = false) => {
 		minute: '2-digit',   // “03:05”
 		...(includeTZ ? { timeZoneName: 'short' } : {})      // “EDT”, “GMT+1”, etc.
 	});
-}
+};
+
+// For displaying range of time
+export const dateTimeRange = (start, end) => {
+	const startString = new Date(start).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
+	const endString = new Date(end).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
+	return `${startString}-${endString}`;
+};
+
+// For displaying weekday and day of month
+export const weekdayAndDOTM = (date) => {
+	const weekday = date.toLocaleDateString('default', { weekday: 'short' });
+	const dotm = date.toLocaleDateString('default', { day: 'numeric' });
+	return `${weekday}\u00A0${dotm}`;
+};
 
 // #endregion
 
 
 // #region ---- RRULE CALCS --------------------------------------------------
 
-// By first index and 2nd: 0->1 or 1->0
-const period2rRule = [
-	['daily', RRule.DAILY],
-	['weekly', RRule.WEEKLY],
-	['monthly', RRule.MONTHLY],
-	['yearly', RRule.YEARLY],
-]
-// By index
-const weekday2rRule = [RRule.SU, RRule.MO, RRule.TU,RRule.WE, RRule.TH, RRule.FR,RRule.SA]
+// Return RRule period by obj period string
+const period2rRule = {
+	'daily': RRule.DAILY,
+	'weekly': RRule.WEEKLY,
+	'monthly': RRule.MONTHLY,
+	'yearly': RRule.YEARLY,
+};
+// Return RRule style day of the week by index
+const weekday2rRule = [RRule.SU, RRule.MO, RRule.TU,RRule.WE, RRule.TH, RRule.FR,RRule.SA];
 
 /**
- * RRule string to RRule
- * @param {*} rRuleStr 
- * @returns 
- */
-export const rRuleStrToRRule = (rRuleStr) => {
-	return rrulestr(rRuleStr);
-}
+ * Get all occurances of schedules between startDate and endDate 
+ * @param {Array} schedules
+ * @param {Date} start
+ * @param {Date} lastDayMidnight
+ * @returns
+*/
+export const getAllRecurs = (schedules, startLocal, lastDayMidnightLocal) => {
+	const startUTC = fromZonedTime(startLocal, LOCAL_TZ);
+	const endLocal = addTime(lastDayMidnightLocal, { 'days': 1 });
+	const endUTC = fromZonedTime(endLocal, LOCAL_TZ);
+	// Filter out schedules that cannot appear within this range... keep (not expired && starts in/before calendar window)
+	const filteredSchedules = schedules.filter((sched) => (!sched.until || !(sched.until < startLocal)) && !(sched.startStamp > endLocal));
+	// Flat map each schedule to get the recurs
+	return filteredSchedules.flatMap(sched => {
+		if (sched.period === 'single') {
+			return [makeSingleRecur(sched)];
+		} else {
+			const rule = objToRRule(sched); // Turn schedule object into RRule
+			const occurs = getOccurances(rule, startUTC, endUTC); // Get occurances of RRule within calendar range
+			if (sched.path.endsWith('test')) { console.log("test sched:", sched,"\nrule:", rule, "\noccurs:", occurs) }
+			return occurs.map(recur => makeMultiRecur(sched, recur));
+		}
+	});
+};
 
 /**
- * RRule to editable object
- * @param {*} rRule 
- * @returns 
- */
-export const rRuleToObj = (rRule) => {
-	const op = rRule.origOptions || rRule.options
-
-	const period = period2rRule.find(([p, rP]) => rP === op.freq)[0] || 'daily';
-	const interval = op.interval || 1;
-
-	let spec = []
-	if (op.byweekday) {
-		spec = op.byweekday.map(rDay => weekday2rRule.findIndex(w => w.weekday === rDay.weekday));
-	} else if (op.bymonthday) {
-		spec = op.bymonthday;
-	} else if (op.bymonth) {
-		spec = op.bymonth;
-	}
-
-	return { period, interval, spec };
-}
-
-
-/**
- * Editable obj -> RRule string
+ * Editable obj -> RRule obj
  * @param {*} obj 
- * @returns 
+ * @returns {RRule}
  */
-export const objToRRule = (obj) => {
+const objToRRule = (obj) => {
+	const tz = obj.tz || LOCAL_TZ;
+	const dtStart = fromZonedTime(obj.startStamp, tz);
+	const until = obj.until ? fromZonedTime(obj.until, tz) : undefined;
+
 	const options = {
-		freq: period2rRule.find(([p, rP]) => p === obj.period)[1] || RRule.DAILY,
+		freq: period2rRule[obj.period] || RRule.DAILY,
 		interval: obj.interval || 1,
-		dtstart: obj.startStamp,
-		until: obj.until
+		dtstart: dtStart,
+		until: until,
+		byhour: [dtStart.getUTCHours()],
+		byminute: [dtStart.getUTCMinutes()]
 	};
+
 	if (obj.period === 'weekly') {
-		console.log('weekly objToRRule', obj);
-		options.byweekday = weekday2rRule[getDayOfWeek(new Date(obj.startStamp), false)];
+		options.byweekday = [weekday2rRule[dtStart.getUTCDay()]];
 	} else if (obj.period === 'monthly') {
-		options.bymonthday = new Date(obj.startStamp).getDate();
+		options.bymonthday = [dtStart.getUTCDate()];
 	} else if (obj.period === 'yearly') {
-		options.bymonth = new Date(obj.startStamp).getMonth() + 1;
+		options.bymonth = [dtStart.getUTCMonth() + 1];
 	}
 
 	return new RRule(options);
-}
+};
 
 
 /**
@@ -383,42 +397,32 @@ export const objToRRule = (obj) => {
  * @param {Date} end 
  * @returns
  */
-export const getOccurances = (rRule, start, end) => {
+const getOccurances = (rRule, start, end) => {
 	let { dtstart, ...restOpts } = rRule.options;
 	dtstart = rRule.before(start, true) || dtstart;
 	const adjRRule = new RRule({ ...restOpts, dtstart });
-	return adjRRule.between(start, end, true);
-}
+	const occursUTC = adjRRule.between(start, end, true);
+	return occursUTC.map(d => toZonedTime(d, LOCAL_TZ));
+};
 
-export const getAllRecurs = (schedules, startDate, endDate, allRecurs = []) => {
-	const filteredRecurs = allRecurs.filter((recur) => !schedules.some(s => s._id === recur._id));
-	schedules.forEach(sched => {
-		if (sched.period === 'single') {
-			filteredRecurs.push({
-				_id: uuid(),
-				scheduleID: sched._id,
-				path: sched.path,
-				startStamp: sched.startStamp,
-				endStamp: sched.endStamp,
-				isRecur: true,
-			})
-		} else {
-			const rule = objToRRule(sched);
-			const recurs = getOccurances(rule, startDate, addTime(endDate, { 'days': 1 }));
+/** Make 'single' schedule occurance into recur */
+const makeSingleRecur = (sched) => ({
+	_id: uuid(),
+	scheduleID: sched._id,
+	path: sched.path,
+	startStamp: sched.startStamp,
+	endStamp: sched.endStamp,
+	isRecur: true,
+});
 
-			recurs.forEach(recur => {
-				filteredRecurs.push({
-					_id: uuid(),
-					scheduleID: sched._id,
-					path: sched.path,
-					startStamp: recur,
-					endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),
-					isRecur: true,
-				});
-			});
-		}
-	});
-	return filteredRecurs;
-}
+/** Make repeating schedule occurance into recur */
+const makeMultiRecur = (sched, recur) => ({
+	_id: uuid(),
+	scheduleID: sched._id,
+	path: sched.path,
+	startStamp: recur,
+	endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),
+	isRecur: true,
+});
 
 // #endregion
