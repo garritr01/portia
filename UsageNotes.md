@@ -14,3 +14,4 @@
 ## Streamlining
 - Clean up css
 - Clean up js
+	- Drop .getTime() in >= and <= cases (they actually compare value)

@@ -689,6 +689,15 @@ body,
 	transform: translate(calc(50% + 1px), 50%);
 }
 
+.eventSpan.noBefore::before,
+.recurSpan.noBefore::before {
+	content: none;
+}
+.eventSpan.noAfter::after,
+.recurSpan.noAfter::after {
+	content: none;
+}
+
 .eventRow {
 	justify-content: flex-start;
 }

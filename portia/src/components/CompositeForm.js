@@ -700,7 +700,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 
-	useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
+	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Handle dynamic path for form loading
 	useEffect(() => {
@@ -828,12 +828,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 					newEntries.push(entry.value);
 				}
 			})
-			console.log(`Adding new suggestions for field ${idx}:`, newEntries);
-			console.log('Will look like:', [ ...form.info[idx].suggestions, ...newEntries]);
+			//console.log(`Adding new suggestions for field ${idx}:`, newEntries);
+			//console.log('Will look like:', [ ...form.info[idx].suggestions, ...newEntries]);
 			const uniqueEntries = [ ...new Set([...form.info[idx].suggestions, ...newEntries]) ];
 			reduceComposite({ type: 'drill', path: ['form', 'info', idx, 'suggestions'], value: uniqueEntries });
 		})
-	}
+	};
 
 	// Allows saving w & w/o event
 	const handleUpsert = (saveEvent) => {	

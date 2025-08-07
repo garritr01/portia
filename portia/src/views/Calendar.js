@@ -236,7 +236,7 @@ export const DayView = ({
 			e.scheduleID === r.scheduleID
 			&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
 		));
-		const daysEvents = [...events, ...activeRecurs].filter(item =>
+		const daysEvents = [ ...events, ...activeRecurs ].filter(item =>
 			(timeDiff(normDate(item.startStamp), date).days === 0)
 			|| (item.startStamp < date && item.endStamp > date)
 		).sort((a, b) => {
@@ -248,6 +248,7 @@ export const DayView = ({
 			if (pDiff !== 0) { return pDiff }
 			return a._id.localeCompare(b._id); // Last (Guaranteed different) order by ids
 		});
+		const overlapEvents = daysEvents.filter(e => e.startStamp < date)
 
 		// Get properties of relevant dummy elements for calculating absolute styles
 		let dayContentSnapshot;
@@ -319,7 +320,6 @@ export const DayView = ({
 		const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
 
 		// Accumulate the number of events in each hour
-		const overlapMembers = daysEvents.filter(e => new Date(e.startStamp) < date);
 		const hourMembers = Array.from({ length: 24 }, () => []);
 		for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
 			const start = new Date(e.startStamp);
@@ -328,7 +328,7 @@ export const DayView = ({
 		}
 
 		// Accumulate necessary formatting info for each hour label
-		let prevMemberHeight = overlapMembers.length * titleHeight;
+		let prevMemberHeight = overlapEvents.length * titleHeight;
 		const hourFormatting = [{ top: prevMemberHeight }];
 		for (let hr = 0; hr < 24; hr++) {
 			const prevHrHeight = (hr + 1) * hourHeight;
@@ -346,6 +346,8 @@ export const DayView = ({
 			const end = item.endStamp;
 
 			const onRight = item?.isRecur || item.complete === 'pending';
+			const startsBefore = item.startStamp < date;
+			const continuesAfter = item.endStamp > addTime(date, { days: 1 });
 
 			let indents;
 			if (onRight) {
@@ -372,16 +374,19 @@ export const DayView = ({
 				}
 				return false;
 			}).length;
-			const hourTop = hourFormatting[start.getHours()].top + hourHeight / 2;
+
+			// Top/Bottom Properties
+			const hourTop = startsBefore ? 0 : hourFormatting[start.getHours()].top + hourHeight / 2;
 			const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
-			const lineTop = hourTop + (start.getMinutes() / 60) * topHourHeight;
+			const lineTop = startsBefore ? hourTop : hourTop + (start.getMinutes() / 60) * topHourHeight;
 			const rowTop = hourTop + topMemberSkips * titleHeight;
 
-			const bottomMembers = hourMembers[end.getHours()];
-			const hourBottom = hourFormatting[end.getHours()].top + hourHeight / 2;
+			const bottomMembers = continuesAfter ? hourMembers[23] : hourMembers[end.getHours()];
+			const hourBottom = continuesAfter ? hourFormatting[24].top + hourHeight : hourFormatting[end.getHours()].top + hourHeight / 2;
 			const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
 			const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
 
+			// L/R properties
 			const translateLine = onRight ? -(eventDisplayPad * indents + timeWidth) : eventDisplayPad * indents;
 			const translateRow = onRight ? translateLine - 2 * eventDisplayPad : translateLine + 2 * eventDisplayPad;
 			const rowWidth = onRight ? translateRow - hourSpanWidth : hourSpanWidth - translateRow;
@@ -432,16 +437,20 @@ export const DayView = ({
 								{hourFormatting.map((fmt, hr) =>
 									<div key={hr} className='hourSpan' style={fmt}>
 										<div className='hourLine'/>
-										<div>{String(hr).padStart(2,'0')}:00</div>
+										<div>{String(hr % 24).padStart(2,'0')}:00</div>
 									</div>
 								)}
 								{daysEvents.map((item, jdx) => {
 									const lineStyle = { ...formatting[jdx].line, '--line-color': colorScheme[item.path.split('/')[0]] };
 									const onRight = item?.isRecur || item.complete === 'pending';
 									const baseClass = `${onRight ? 'recur' : 'event'}`;
+									const pointIndicator = [
+										item.startStamp < date && 'noBefore',
+										item.endStamp >= addTime(date, { days: 1 }) && 'noAfter',
+									].filter(Boolean).join(' ');
 									return (
 										<React.Fragment key={item._id}>
-											<span className={`${baseClass}Span`} style={lineStyle} />
+											<span className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} />
 											<div className={`${baseClass}Row formRow`} style={formatting[jdx].row}>
 												{onRight && <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p> }
 												<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}

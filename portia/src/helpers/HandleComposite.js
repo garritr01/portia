@@ -1,4 +1,5 @@
 // helpers/HandleComposite.js
+import { assignKeys } from './Misc';
 
 export const makeEmptyForm = () =>  ({
 	_id: null, // Carry _id if already exists
@@ -133,3 +134,36 @@ export const updateComposite = (state, action) => {
 		}
 	}
 }
+
+// Create composite based on recur
+export const createCompositeFromRecur = (forms, schedules, recur) => {
+	const { isRecur, ...recurClean } = recur;
+	const newSchedules = schedules.filter(s => s.path === recurClean.path);
+	let newForm = forms.find(f => f._id === newSchedules[0].formID);
+	if (!newForm.includeStart && new Date(recurClean.startStamp).getTime() !== new Date(recurClean.endStamp).getTime()) {
+		newForm = { ...newForm, includeStart: true }
+	}
+	newForm = assignKeys(newForm);
+	const newEvent = assignKeys({ 
+		...makeEmptyEvent(), 
+		...recurClean,
+		_id: null,
+		formID: newForm._id,
+		scheduleStart: recurClean.startStamp,
+		info: newForm.info.map(f => {
+			const { suggestions, baseValue, ...cleanF } = f;
+			return({ 
+				...cleanF,
+				content: 
+					f.type === 'input' ? (
+						baseValue ? [baseValue] : ['']
+					) 
+					: f.type === 'text' ? (
+						baseValue ? baseValue : ''
+					) 
+					: null
+				});
+		})
+	});
+	return newEvent, newForm, newSchedules
+};
