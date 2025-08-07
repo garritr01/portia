@@ -351,11 +351,11 @@ export const DayView = ({
 
 			let indents;
 			if (onRight) {
-				potRightOverlaps = potRightOverlaps.filter((potR) => (potR.startStamp.getTime() < item.startStamp.getTime() && potR.endStamp.getTime() > item.startStamp.getTime())); // If starts before and ends during/after
+				potRightOverlaps = potRightOverlaps.filter((potR) => potR.startStamp < item.startStamp && potR.endStamp > item.startStamp && potR.endStamp.getMinutes() !== item.startStamp.getMinutes()); // If starts before and ends during/after
 				potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
 				indents = potRightOverlaps.length;
 			} else {
-				potLeftOverlaps = potLeftOverlaps.filter((potL) => (potL.startStamp.getTime() < item.startStamp.getTime() && potL.endStamp.getTime() > item.startStamp.getTime())); // If starts before and ends during/after
+				potLeftOverlaps = potLeftOverlaps.filter((potL) => potL.startStamp < item.startStamp && potL.endStamp > item.startStamp && potL.endStamp.getMinutes() !== item.startStamp.getMinutes()); // If starts before and ends during/after
 				potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
 				indents = potLeftOverlaps.length;
 			}
