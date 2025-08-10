@@ -1,4 +1,11 @@
-const tzCheck = (value) => {
+const allowed = {
+	'mc': ['null', 'string'],
+	'tf': ['null', 'boolean'],
+	'input': ['string'],
+	'text': ['string']
+}
+
+const tzCheck = (value, valueTypePlaceholder, contentTypePlaceholder) => {
 	try {
 		new Intl.DateTimeFormat([], { timeZone: value });
 		return { valid: true, err: null };
@@ -7,27 +14,69 @@ const tzCheck = (value) => {
 	}
 }
 
-const pathCheck = (value) => {
+const pathCheck = (value, valueTypePlaceholder, contentTypePlaceholder) => {
 	if (value.endsWith('/')) { return { valid: false, err: 'Trailing slash not permitted' } } 
 	else { return { valid: true, err: null } }
 }
 
-const numberCheck = (value) => {
+const numberCheck = (value, valueTypePlaceholder, contentTypePlaceholder) => {
 	if (typeof value === 'number' && Number.isFinite(value)) { return { valid: true, err: null } }
 	else { return { valid: false, err: 'Not a numeric value' } }
 }
 
-const falseToTest = (value) => {
+const contentCheck = (value, valueType, contentType) => {
+	if (allowed[contentType].includes(valueType)) {
+		return { valid: true, err: null }
+	} else {
+		return { valid: false, err: `${contentType} content is invalid type: (${valueType})${value}`}
+	}
+}
+
+const baseValueCheck = (value, valueType, contentType) => {
+	if (contentType === 'text') { 
+		if (!value) {
+			return { valid: true, err: null }
+		} else {
+			return { valid: false, err: `Base value should not be present in ${contentType}`}
+		}
+	} else if (allowed[contentType].includes(valueType)) {
+		return { valid: true, err: null }
+	} else {
+		return { valid: false, err: `${contentType} base value is invalid type: (${valueType})${value}` }
+	}
+}
+
+const suggestionsCheck = (value, valueType, contentType) => {
+	if (contentType !== 'input') {
+		return { valid: false, err: `Suggestions should not be present in ${contentType}`}
+	} else if (allowed[contentType].includes(valueType)) {
+		return { valid: true, err: null }
+	} else {
+		return { valid: false, err: `${contentType} suggestion is invalid type: (${valueType})${value}` }
+	}
+}
+
+const optionsCheck = (value, valueType, contentType) => {
+	if (contentType !== 'mc') {
+		return { valid: false, err: `Options should not be present in ${contentType}` }
+	} else if (allowed[contentType].includes(valueType)) {
+		return { valid: true, err: null }
+	} else {
+		return { valid: false, err: `${contentType} option is invalid type: (${valueType})${value}` }
+	}
+}
+
+const falseToTest = (value, placeholder) => {
 	return { valid: false, err: 'Test error'};
 }
 
 // Recursively check type validity of objects before storage
 // Objects check nested values based on keys 
 // Arrays check each value for specified check
-const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
+const buildTypeValidity = (keys, value, allowedTypes, overallState, contentType = null) => {
 	// Record location of check
 	const path = keys.join('->') || 'root';
-	//console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
+	console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
 	// allowed types is (non-array) object until checking types
 	const type = 
 		value === null ? 'null' :
@@ -39,11 +88,15 @@ const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
 	if (type === 'object') {
 		return Object.fromEntries(
 			Object.entries(value).map(
-				([key, val]) => [key, buildTypeValidity([ ...keys, key], val, allowedTypes[key], overallState)]
+				([key, val]) => [key, buildTypeValidity([ ...keys, key], val, allowedTypes[key], overallState, contentType)]
 			)
 		);
 	} else if (type === 'array') {
-		return value.map((val, idx) => buildTypeValidity([ ...keys, idx], val, allowedTypes, overallState));
+		if (keys[keys.length - 1] === 'info') {
+			return value.map((val, idx) => buildTypeValidity([ ...keys, idx], val, allowedTypes, overallState, val.type));
+		} else {
+			return value.map((val, idx) => buildTypeValidity([...keys, idx], val, allowedTypes, overallState, contentType));
+		}
 	} else {
 		let errMsg = '';
 		let matchedType = false; // AT LEAST one type check must be matched
@@ -58,7 +111,7 @@ const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
 			}
 
 			if (typeof check === 'function') {
-				const result = check(value);
+				const result = check(value, type, contentType);
 				if (!result?.valid) {
 					passedCustomChecks = false;
 					errMsg += result.err;
@@ -68,7 +121,7 @@ const buildTypeValidity = (keys, value, allowedTypes, overallState) => {
 		}
 
 		if (!matchedType) {
-			errMsg += `${path} contains invalid type: ${type}. `
+			errMsg += `${path} contains invalid value: (${type}) ${value}. `
 		}
 
 		if (!matchedType || !passedCustomChecks) {
@@ -92,9 +145,9 @@ export const validateForm = (form) => {
 			label: ['string'],
 			type: ['string'],
 			placeholder: ['string'],
-			baseValue: ['string', 'boolean', 'null'],
-			suggestions: ['string'],
-			options: ['string'],
+			baseValue: ['any', baseValueCheck],
+			suggestions: ['any', suggestionsCheck],
+			options: ['any', optionsCheck],
 		},
 	}
 
@@ -113,11 +166,9 @@ export const validateEvent = (event) => {
 		path: ['string', pathCheck],
 		scheduleStart: ['null', 'date'],
 		info: {
-			content: ['string', 'boolean'],
+			content: ['any', contentCheck],
 			label: ['string'],
 			type: ['string'],
-			options: ['string'],
-			placeholder: ['string'],
 		},
 		complete: ['string'],
 		startStamp: ['date'],

@@ -568,7 +568,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 					<div className="navRow">
 						<div id={`${idx}-content`} className={errors?.event?.info?.[idx]?.content[0]?.err ? "navCell wTextArea erred" : "navCell wTextArea"}>
 							<textarea
-								placeholder={f.placeholder + '...'}
+								placeholder={form.info[idx].placeholder + '...'}
 								value={f.content}
 								onChange={e => changeField(['event', 'info', idx, 'content'], e.target.value)}
 							/>
@@ -577,7 +577,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 					</div>
 					: f.type === 'mc' ?
 						<div className="navRow">
-							{f.options.map((opt, optIdx) => (
+							{form.info[idx].options.map((opt, optIdx) => (
 								<div key={optIdx} id={`${idx}-content-${optIdx}`} className={errors?.event?.info?.[idx]?.options?.[optIdx]?.err ? "navCell erred" : "navCell"}>
 									<button
 										className={`relButton ${f.content === opt ? 'selected' : ''}`}
@@ -695,7 +695,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	*/
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);
+	useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
@@ -730,7 +730,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	const updateEventUI = (updatedFormInfo) => {
 		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
 			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
-			const { baseValue, suggestions, placeholder, ...cleanedF } = f;
+			const { baseValue, suggestions, placeholder, options, ...cleanedF } = f;
 			if (prevEvent) {
 				return { ...cleanedF, content: prevEvent.content };
 			} else {
