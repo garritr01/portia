@@ -858,6 +858,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		if (pendingSave) {
 			upsertComposite({ ...composite, event: dropKeys(event), form: dropKeys(form)});
 			setPendingSave(false);
+			setShowForm(false);
 		}
 	}, [composite, pendingSave]);
 

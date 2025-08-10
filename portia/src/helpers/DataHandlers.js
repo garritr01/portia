@@ -32,7 +32,7 @@ const mergeByID = (all, updated) => {
 	}
 };
 
-export const useCalendarDataHandler = (startDate, endDate, setShowForm, reduceComposite) => {
+export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 	const { user } = useUser();
 	const save = useSave();
 	const fetchEvents = useFetchEvents(startDate, endDate);
@@ -118,10 +118,9 @@ export const useCalendarDataHandler = (startDate, endDate, setShowForm, reduceCo
 				const newSchedules = saved.schedules.map((s) => (timeStampsToDates(s)));
 				setSchedules((prev) => mergeByID(prev, newSchedules));
 				setRecurs((prev) => [
-					...prev.filter(r => !newSchedules.some(s => s._id === r._id)), // Filter out old versions
+					...prev.filter(r => !newSchedules.some(s => s._id === r.scheduleID)), // Filter out old versions
 					...getAllRecurs(newSchedules, startDate, endDate) // Add recurs for new versions
 				]);
-				setShowForm({ _id: null });
 				reduceComposite({ type: 'reset' });
 
 				return saved;

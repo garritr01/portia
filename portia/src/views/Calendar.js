@@ -117,10 +117,10 @@ export const DayView = ({
 
 	// --- EVENT/FORM/RECUR HANDLERS --------------------------------------------------
 	const [composite, reduceComposite] = useReducer(updateComposite, initialCompositeState);
-	const [showForm, setShowForm] = useState(true);
+	const [showForm, setShowForm] = useState(false);
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
-	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm, reduceComposite);
+	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], reduceComposite);
 
 	// Styling constants
 	const eventDisplayPad = 4;
