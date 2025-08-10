@@ -1,4 +1,4 @@
-const allowed = {
+const infoAllowed = {
 	'mc': ['null', 'string'],
 	'tf': ['null', 'boolean'],
 	'input': ['string'],
@@ -25,7 +25,7 @@ const numberCheck = (value, valueTypePlaceholder, contentTypePlaceholder) => {
 }
 
 const contentCheck = (value, valueType, contentType) => {
-	if (allowed[contentType].includes(valueType)) {
+	if (infoAllowed[contentType].includes(valueType)) {
 		return { valid: true, err: null }
 	} else {
 		return { valid: false, err: `${contentType} content is invalid type: (${valueType})${value}`}
@@ -39,7 +39,7 @@ const baseValueCheck = (value, valueType, contentType) => {
 		} else {
 			return { valid: false, err: `Base value should not be present in ${contentType}`}
 		}
-	} else if (allowed[contentType].includes(valueType)) {
+	} else if (infoAllowed[contentType].includes(valueType)) {
 		return { valid: true, err: null }
 	} else {
 		return { valid: false, err: `${contentType} base value is invalid type: (${valueType})${value}` }
@@ -49,7 +49,7 @@ const baseValueCheck = (value, valueType, contentType) => {
 const suggestionsCheck = (value, valueType, contentType) => {
 	if (contentType !== 'input') {
 		return { valid: false, err: `Suggestions should not be present in ${contentType}`}
-	} else if (allowed[contentType].includes(valueType)) {
+	} else if (infoAllowed[contentType].includes(valueType)) {
 		return { valid: true, err: null }
 	} else {
 		return { valid: false, err: `${contentType} suggestion is invalid type: (${valueType})${value}` }
@@ -59,7 +59,7 @@ const suggestionsCheck = (value, valueType, contentType) => {
 const optionsCheck = (value, valueType, contentType) => {
 	if (contentType !== 'mc') {
 		return { valid: false, err: `Options should not be present in ${contentType}` }
-	} else if (allowed[contentType].includes(valueType)) {
+	} else if (infoAllowed[contentType].includes(valueType)) {
 		return { valid: true, err: null }
 	} else {
 		return { valid: false, err: `${contentType} option is invalid type: (${valueType})${value}` }
@@ -77,7 +77,7 @@ const buildTypeValidity = (keys, value, allowedTypes, overallState, contentType 
 	// Record location of check
 	const path = keys.join('->') || 'root';
 	console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
-	// allowed types is (non-array) object until checking types
+	// infoAllowed types is (non-array) object until checking types
 	const type = 
 		value === null ? 'null' :
 		value instanceof Date ? 'date' :

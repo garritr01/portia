@@ -18,6 +18,9 @@ import {
 	makeEmptySchedule,
 	initialCompositeState,
 	updateComposite,
+	initEmptyComposite,
+	createCompositeFromRecur,
+	createCompositeFromEvent,
 } from '../helpers/HandleComposite';
 import { assignKeys } from '../helpers/Misc';
 import { useSwipe } from '../helpers/DynamicView';
@@ -114,18 +117,10 @@ export const DayView = ({
 
 	// --- EVENT/FORM/RECUR HANDLERS --------------------------------------------------
 	const [composite, reduceComposite] = useReducer(updateComposite, initialCompositeState);
-	const [showForm, setShowForm] = useState({ _id: null });
+	const [showForm, setShowForm] = useState(true);
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
 	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], setShowForm, reduceComposite);
-	//useEffect(() => console.log('events', events), [events]);
-	//useEffect(() => console.log('forms', forms), [forms]);
-	//useEffect(() => console.log('schedules', schedules), [schedules]);
-	//useEffect(() => console.log('recurs', recurs), [recurs]);
-	const eventsMemo = useMemo(() => Object.fromEntries(events.map(e => [e._id, e])), [events]);
-	const formsMemo = useMemo(() => Object.fromEntries(forms.map(f => [f._id, f])), [forms]);
-	const recursMemo = useMemo(() => [ ...recurs ], [recurs]);
-	const schedulesMemo = useMemo(() => [ ...schedules ], [schedules]);
 
 	// Styling constants
 	const eventDisplayPad = 4;
@@ -136,98 +131,9 @@ export const DayView = ({
 			return [lDir, color];
 		})
 	);
-	
-	// Autofill form, event, schedules based on event or recur click
-	useEffect(() => {
-		// Autofill based on defaults
-		// console.log("Show Form:", showForm);
-
-		// NEEDS ACTION!!!!!!
-		// Set a start and endStamp on the 'new' (+) button click
-
-		if (showForm._id !== null && showForm._id !== 'new') {
-			// Autofill based on event
-			let newEvent = eventsMemo[showForm._id];
-			if (newEvent) {
-				// Should always be found
-				let newForm = formsMemo[newEvent.formID];
-				if (!newForm) {
-					console.error(`Form not found from event path: ${newEvent.path}`);
-					newForm = makeEmptyForm();
-				}
-
-				if (newEvent.complete === 'pending' && newForm.includeStart) {
-					newEvent.endStamp = new Date();
-				}
-
-				// None to many may be found
-				let newSchedules = schedulesMemo.filter(sched => newEvent.path === sched.path);
-				if (!newSchedules) {
-					newSchedules = [makeEmptySchedule()];
-				}
-
-				reduceComposite({
-					type: 'set',
-					event: assignKeys(newEvent),
-					form: assignKeys(newForm),
-					schedules: newSchedules,
-				});
-				return;
-			}
-
-			// Should never get here
-			console.error("Selection doesn't match recur or event");
-			reduceComposite({ type: 'reset' });
-		}
-
-	}, [showForm, eventsMemo, formsMemo, schedulesMemo, recursMemo]);
 
 	// --- DATE HANDLERS -------------------------------------------------------
 	const month = selectedDate.toLocaleString('default', { month: 'long' });
-
-	// Create composite based on recur
-	const createCompositeFromRecur = (recur) => {
-		const { isRecur, ...recurClean } = recur;
-		const newScheds = schedules.filter(s => s.path === recurClean.path);
-		let newForm = forms.find(f => f._id === newScheds[0].formID);
-		if (!newForm.includeStart && new Date(recurClean.startStamp).getTime() !== new Date(recurClean.endStamp).getTime()) {
-			newForm = { ...newForm, includeStart: true }
-		}
-		let newEvent = { 
-			...makeEmptyEvent(), 
-			...recurClean,
-			_id: null,
-			formID: newForm._id,
-			scheduleStart: recurClean.startStamp,
-			info: newForm.info.map(f => {
-				const { suggestions, baseValue, ...cleanF } = f;
-				return({ 
-					...cleanF,
-					content: 
-						f.type === 'input' ? (
-							baseValue ? [baseValue] : ['']
-						) 
-						: f.type === 'text' ? (
-							baseValue ? baseValue : ''
-						) 
-						: null
-					});
-			})
-		};
-		//console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
-		reduceComposite({ type: 'set', event: assignKeys(newEvent), form: assignKeys(newForm), schedules: newScheds });
-	};
-
-	// Initialize empty form for event, form, sched
-	const initEmptyComposite = (date) => {
-		reduceComposite({ type: 'reset' });
-		const clicked = new Date(date);
-		const current = new Date();
-		clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
-		reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
-		reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
-		setShowForm({ _id: 'new' });
-	}
 
 	// Format events for display in dayCell
 	const formatEvents = (date, isLarge) => {
@@ -431,7 +337,10 @@ export const DayView = ({
 								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
 								>
 								<span>{weekdayAndDOTM(date)}</span>
-								<FiPlus className="relButton" onClick={() => initEmptyComposite(date)} />
+								<FiPlus className="relButton" onClick={() => {
+									initEmptyComposite(date, reduceComposite);
+									setShowForm(true);
+								}} />
 							</div>
 							<div className={isLarge ? 'dayContentLarge' : 'dayContentSmall'}>
 								{hourFormatting.map((fmt, hr) =>
@@ -456,11 +365,11 @@ export const DayView = ({
 												<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
 													onClick={() => {
 														if (item.isRecur) {
-															createCompositeFromRecur(item);
-															setShowForm({ _id: 'new' }); // click recur case
+															createCompositeFromRecur(item, forms, schedules, reduceComposite);
 														} else {
-															setShowForm({ _id: item._id }); // click event case
+															createCompositeFromEvent(item, forms, schedules, reduceComposite);
 														}
+														setShowForm(true);
 													}}
 													>
 													{item.path.split('/')[item.path.split('/').length - 1]}
@@ -474,7 +383,7 @@ export const DayView = ({
 						</div>
 					)
 				})}
-				{showForm._id &&
+				{showForm &&
 					<Floater>
 						<CompositeForm
 							allForms={forms}

@@ -60,6 +60,11 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 
 	const commitPart = (unit, newVal) => {
 		try {
+			if (unit === 'hour' && parseInt(newVal) > 23) {
+				invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
+			} else if (unit === 'minute' && parseInt(newVal) > 59) {
+				invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
+			}
 			const upDate = calcFriendlyDateTime(unit, date, { ...rawParts, [unit]: newVal });
 			const validUpDate = !isNaN(upDate.getTime())
 			if (!validUpDate) {
@@ -610,6 +615,13 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		scheduleUntil: true
 	});
 
+	//useEffect(() => console.log("form:\n", form), [form]);
+	useEffect(() => console.log("event:\n", event), [event]);
+	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("errors:\n", errors), [errors]);
+	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
+
 	// Holds last state for easy reversion
 	const ogState = useRef({
 		form: { ...form, info: [...form.info] },
@@ -694,14 +706,6 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	}, [form, event]);
 	*/
 
-	//useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);
-	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);		
-	//useEffect(() => console.log("errors:\n", errors), [errors]);
-
-	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
-
 	// Handle dynamic path for form loading
 	useEffect(() => {
 		//console.log(`Finding suggested paths with:`, form.path);
@@ -754,7 +758,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	const handleCreateSchedule = () => {
 		if (editSchedule === null) {
 			const lastSched = schedules.length > 0 ? schedules[schedules.length - 1] : null;
-			setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: lastSched.until ? true : false }))
+			setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: lastSched?.until ? true : false }))
 			setEditSchedule(schedules.length);
 			const newSchedule = {
 				...makeEmptySchedule(event.path),
@@ -851,7 +855,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	// Trigger save with state so everything is updated before executing the save (particularly suggestions)
 	useEffect(() => {
-		if (pendingSave) { 
+		if (pendingSave) {
 			upsertComposite({ ...composite, event: dropKeys(event), form: dropKeys(form)});
 			setPendingSave(false);
 		}
@@ -1080,7 +1084,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				<FiX className="submitButton add" 
 					onClick={() => {
 						reduceComposite({ type: 'reset' });
-						setShowForm({ _id: null });
+						setShowForm(false);
 					}}
 					/>
 			</div>

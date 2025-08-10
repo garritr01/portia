@@ -11,7 +11,7 @@ const mergeByID = (all, updated) => {
 	// If they passed in an array, fold each element in turn
 	if (Array.isArray(updated)) {
 		// Make a shallow copy to avoid mutating the original
-		const result = [ ...all ];
+		let result = [ ...all ];
 		updated.forEach(item => {
 			const idx = result.findIndex(x => x._id === item._id);
 			if (idx > -1) {

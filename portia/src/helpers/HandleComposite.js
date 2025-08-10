@@ -26,7 +26,7 @@ export const makeEmptySchedule = (newPath = '') => ({
 	endStamp: new Date(), // Use date here, but store as endStamp in ms
 	period: null, // null (no schedule)/single/daily/weekly/monthly/yearly
 	interval: 1, // Every other day/week etc...
-	until: new Date(),
+	until: null,
 	tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", // Timezone to base recurrence on
 });
 export const initialCompositeState = {
@@ -135,16 +135,52 @@ export const updateComposite = (state, action) => {
 	}
 }
 
+// Initialize empty form for event, form, sched
+export const initEmptyComposite = (date, reduceComposite) => {
+	reduceComposite({ type: 'reset' });
+	const clicked = new Date(date);
+	const current = new Date();
+	clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
+	reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
+	reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
+}
+
+// Create composite based on event
+export const createCompositeFromEvent = (event, forms, schedules, reduceComposite) => {
+
+	// Should always be found
+	const newForm = forms.find(f => f._id === event.formID);
+
+	// None to many may be found
+	const newScheds = schedules.filter(sched => event.path === sched.path);
+
+	if (event.complete === 'pending' && newForm.includeStart) {
+		event.endStamp = new Date();
+	}
+
+	event.info = event.info.map(f => {
+		const { placeholder, options, ...cleanedF } = f;
+		return cleanedF;
+	})
+
+	reduceComposite({
+		type: 'set',
+		event: assignKeys(event),
+		form: assignKeys(newForm),
+		schedules: newScheds,
+	});
+
+}
+
 // Create composite based on recur
-export const createCompositeFromRecur = (forms, schedules, recur) => {
+export const createCompositeFromRecur = (recur, forms, schedules, reduceComposite) => {
 	const { isRecur, ...recurClean } = recur;
-	const newSchedules = schedules.filter(s => s.path === recurClean.path);
-	let newForm = forms.find(f => f._id === newSchedules[0].formID);
+	const newScheds = schedules.filter(s => s.path === recurClean.path);
+	let newForm = forms.find(f => f._id === newScheds[0].formID);
 	if (!newForm.includeStart && new Date(recurClean.startStamp).getTime() !== new Date(recurClean.endStamp).getTime()) {
 		newForm = { ...newForm, includeStart: true }
 	}
-	newForm = assignKeys(newForm);
-	const newEvent = assignKeys({ 
+	let newEvent = { 
 		...makeEmptyEvent(), 
 		...recurClean,
 		_id: null,
@@ -164,6 +200,12 @@ export const createCompositeFromRecur = (forms, schedules, recur) => {
 					: null
 				});
 		})
+	};
+	//console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
+	reduceComposite({ 
+		type: 'set', 
+		event: assignKeys(newEvent), 
+		form: assignKeys(newForm), 
+		schedules: newScheds
 	});
-	return newEvent, newForm, newSchedules
 };
