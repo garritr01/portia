@@ -32,10 +32,10 @@ export const makeEmptySchedule = (newPath = '') => ({
 export const initialCompositeState = {
 	form: makeEmptyForm(),
 	event: makeEmptyEvent(),
-	schedules: [],
+	schedules: {},
 	dirty: { form: false, event: false, schedules: {} },
 	errors: { form: {}, event: {}, schedules: {} },
-	delete: { form: [], event: [], schedules: [] }
+	delete: { form: false, event: false, schedules: [] }
 };
 
 // Recursive composite update helper
@@ -187,7 +187,7 @@ export const createCompositeFromRecur = (recur, forms, schedules, reduceComposit
 		formID: newForm._id,
 		scheduleStart: recurClean.startStamp,
 		info: newForm.info.map(f => {
-			const { suggestions, baseValue, ...cleanF } = f;
+			const { suggestions, baseValue, placeholder, ...cleanF } = f;
 			return({ 
 				...cleanF,
 				content: 

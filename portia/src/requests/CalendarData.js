@@ -1,4 +1,4 @@
-// requests/Calendar.js
+// requests/CalendarData.js
 
 import { useCallback } from 'react';
 import { useFetchWithAuth } from './General';
@@ -8,7 +8,7 @@ export const useFetchEvents = (startDate, endDate) => {
 	const fetchWithAuth = useFetchWithAuth();
 
 	return useCallback(async () => {
-		const query = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
+		const query = `?start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`;
 		const res = await fetchWithAuth('events', query, {});
 		if (!res.ok) throw new Error(`Status ${res.status}`);
 		const data = await res.json();
@@ -23,7 +23,7 @@ export const useFetchForms = () => {
 		if (!res.ok) throw new Error(`Status ${res.status}`)
 		return res.json()
 	}, [fetchWithAuth])
-}
+};
 
 export const useFetchSchedules = () => {
 	const fetchWithAuth = useFetchWithAuth()
@@ -33,4 +33,4 @@ export const useFetchSchedules = () => {
 		const data = await res.json();
 		return data.map(s => timeStampsToDates(s));
 	}, [fetchWithAuth]);
-}
+};

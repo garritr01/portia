@@ -1,4 +1,4 @@
-// helpers/DataHandler
+// helpers/DataHandler.js
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext.js';
@@ -7,28 +7,16 @@ import { useFetchChecklist } from '../requests/ChecklistData.js';
 import { useSave } from '../requests/General.js';
 import { getAllRecurs, timeStampsToDates } from './DateTimeCalcs';
 
-const mergeByID = (all, updated) => {
+const mergeUpdate = (all, updated, deleted) => {
 	// If they passed in an array, fold each element in turn
-	if (Array.isArray(updated)) {
+	if (Array.isArray(updated) && Array.isArray(deleted)) { // Updated and deleted both array
 		// Make a shallow copy to avoid mutating the original
-		let result = [ ...all ];
-		updated.forEach(item => {
-			const idx = result.findIndex(x => x._id === item._id);
-			if (idx > -1) {
-				result[idx] = item;
-			} else {
-				result.push(item);
-			}
-		});
-		return result;
-	}
-
-	// Otherwise it's a single object
-	const idx = all.findIndex(x => x._id === updated._id);
-	if (idx > -1) {
-		return all.map(x => (x._id === updated._id ? updated : x));
+		const old = all.filter(x => !deleted.includes(x._id) && !updated.some(u => u._id === x._id));
+		const trueUpdates = updated.filter(x => x._id);
+		return [ ...old, ...trueUpdates];
 	} else {
-		return [...all, updated];
+		console.warn("Updated and deleted structures are not both arrays.")
+		return all;
 	}
 };
 
@@ -100,25 +88,29 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 		async (composite) => {
 
 			// normalize your payload
-			const { form, event, schedules, dirty } = composite;
+			const { form, event, schedules, dirty, toDelete } = composite;
 			const payload = {
 				form,
 				event,
 				schedules,
-				dirty
+				dirty, 
+				toDelete
 			};
 
 			console.log("Saving composite:", payload);
 
 			try {
-				const saved = await save("events", "POST", payload);
+				const saved = await save("composite", "POST", payload);
 
-				setForms(prev => mergeByID(prev, saved.form));
-				setEvents(prev => mergeByID(prev, timeStampsToDates(saved.event)));
+				setForms(prev => mergeUpdate(prev, [saved.form], [saved?.deletions?.form]));
+				setEvents(prev => mergeUpdate(prev, [timeStampsToDates(saved.event)], [saved?.deletions?.event]));
 				const newSchedules = saved.schedules.map((s) => (timeStampsToDates(s)));
-				setSchedules((prev) => mergeByID(prev, newSchedules));
+				setSchedules((prev) => mergeUpdate(prev, newSchedules, saved?.deletions?.schedules));
 				setRecurs((prev) => [
-					...prev.filter(r => !newSchedules.some(s => s._id === r.scheduleID)), // Filter out old versions
+					...prev.filter(r => 
+						!newSchedules.some(s => s._id === r.scheduleID) 
+						&& !saved?.deletions?.schedules.includes(r.scheduleID)
+					), // Filter out old and deleted versions
 					...getAllRecurs(newSchedules, startDate, endDate) // Add recurs for new versions
 				]);
 				reduceComposite({ type: 'reset' });

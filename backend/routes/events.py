@@ -3,35 +3,27 @@ from flask import Blueprint, jsonify, request
 from backend.firebase import eventsCo
 from backend.auth import handleFirebaseAuth
 from backend.logger import logRequests, getLogger
-from backend.routes.composite import upsertComposite
+from backend.helpers import _to_dt, _convertStamps2ISOString
 
 logger = getLogger(__name__)
 eventsBP = Blueprint("events", __name__, url_prefix="/events")
-
 
 @eventsBP.route("", methods=["GET"])
 @logRequests
 @handleFirebaseAuth
 def listEvents(uID):
-	docs = eventsCo.where("ownerID", "==", uID).stream()
-	return jsonify([{**d.to_dict(), "_id": d.id} for d in docs]), 200
+	start = request.args.get("start", None)
+	end = request.args.get("end", None)
 
+	logger.info(f"GET events in range {_to_dt(start)} - {_to_dt(end)}")
 
-@eventsBP.route("", methods=["POST", "PUT"])
-@logRequests
-@handleFirebaseAuth
-def upsertEventComposite(uID):
-	objects = upsertComposite(request.get_json() or {}, uID)
-	return jsonify(objects), 200
+	q = eventsCo.where("ownerID", "==", uID)
+	if start:
+		q = q.where("endStamp", ">=", _to_dt(start))
+	
+	docs = list(q.stream())
+	events = [{**d.to_dict(), "_id": d.id} for d in docs]
+	if end:
+		events = [e for e in events if e.get("startStamp") and e["startStamp"] < _to_dt(end)]
 
-
-@eventsBP.route("/<docID>", methods=["DELETE"])
-@logRequests
-@handleFirebaseAuth
-def deleteEvent(uID, docID):
-	ref = eventsCo.document(docID)
-	doc = ref.get()
-	if not doc.exists or doc.to_dict().get("ownerID") != uID:
-		return jsonify({"error": "Permission denied by uID"}), 403
-	ref.delete()
-	return jsonify({"_id": docID}), 200
+	return jsonify(_convertStamps2ISOString(events)), 200

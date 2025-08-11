@@ -15,3 +15,5 @@ CORS_ORIGINS = json.loads(os.getenv("CORS_ORIGINS", corigins))
 FIREBASE_CREDS = json.loads(os.getenv("FIREBASE_ADMIN_JSON", "{}"))
 LOGGER_CREDS   = json.loads(os.getenv("LOGGER_ADMIN_JSON", "{}"))
 
+MASS_MIGRATE = None
+

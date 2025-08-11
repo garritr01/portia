@@ -11,7 +11,7 @@ from backend.config import (
 	PORT,
 	CORS_ORIGINS,
 	FIREBASE_CREDS,
-	LOGGER_CREDS,
+	LOGGER_CREDS
 )
 
 logger = getLogger(__name__)
@@ -75,12 +75,14 @@ def createApp():
 	# Import and reg blueprints
 	from backend.routes.test import testBP
 	from backend.routes.checklist import checklistBP
+	from backend.routes.composite import compositeBP
 	from backend.routes.forms import formsBP
 	from backend.routes.events import eventsBP
 	from backend.routes.schedules import schedulesBP
 	
 	app.register_blueprint(testBP)
 	app.register_blueprint(checklistBP)
+	app.register_blueprint(compositeBP)
 	app.register_blueprint(formsBP)
 	app.register_blueprint(eventsBP)
 	app.register_blueprint(schedulesBP)

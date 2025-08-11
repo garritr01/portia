@@ -5,7 +5,9 @@
 
 /logs
 /backend/logs
+/migrations/logs
 
+/migrations/__pycache__
 /backend/__pycache__
 /backend/routes/__pycache__
 
