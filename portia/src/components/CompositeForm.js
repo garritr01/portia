@@ -723,25 +723,27 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	// Handle dynamic path for form loading
 	useEffect(() => {
-		//console.log(`Finding suggested paths with:`, form.path);
-		//console.log('available paths:', allForms.map(f => f.path));
-		const formPathLength = form.path.split('/').length;
-		const filteredPaths = allForms.map(f => f.path)
-			.filter(p => p.startsWith(form.path))
-			.map(p => {
-				const pSplit = p.split('/');
-				const pSliced = pSplit.slice(0, formPathLength);
-				const pTrimmed = pSliced.join('/');
-				if (pTrimmed === form.path && pSplit.length > formPathLength) {
-					return pSplit.slice(0, formPathLength + 1).join('/');
-				} else {
-					return pTrimmed;
-				}
-			});
-		const uniquePaths = Array.from(new Set(filteredPaths))
-			.sort((a, b) => a.localeCompare(b))
-			.map(p => ({ display: p, value: p }));
-		//console.log('suggested paths:', uniquePaths);
+		const inputPath = form.path;
+		const inputLength = inputPath.split('/').length;
+
+		const filteredPaths = allForms.map(f => 
+				f.path
+			).filter(p => {
+				const sameParents = p.split('/').slice(0, inputLength - 1).join('/') === inputPath.split('/').slice(0, inputLength - 1).join('/');
+				const longerThanSuggestion = inputLength > p.split('/').length;
+				return sameParents && !longerThanSuggestion;
+			}).map(p => 
+				p.split('/').slice(0, inputLength).join('/')
+			);
+
+		const uniquePaths = Array.from(
+				new Set(filteredPaths)
+			).sort((a, b) => 
+				a.localeCompare(b)
+			).map(p => 
+				({ display: p, value: p })
+			);
+
 		setSuggPaths(uniquePaths);
 	}, [form.path]);
 

@@ -5,6 +5,50 @@ import { useScreen } from '../contexts/ScreenContext';
 import { measureTextWidth } from '../helpers/Measure';
 import { ErrorInfoButton } from './Notifications';
 
+const useDropCore = ({ 
+	value, 
+	allowType,
+	numericOnly,
+	realtimeUpdate,
+	errorInfo,
+	dropHeaderID,
+	placeholder,
+}) => {
+	const { smallScreen = false } = useScreen() || {};
+	const { currentNav } = useKeyNav() || {};
+	const [rVal, setRVal] = useState(value);
+	const headRef = useRef(null);
+	const chevRef = useRef(null);
+	const listRef = useRef(null);
+	const lensRef = useRef(null);
+	const snapTimeout = useRef(null);
+	const skipSnapRef = useRef(false);
+	const isOpen = currentNav instanceof HTMLElement && headRef.current instanceof HTMLElement && currentNav.contains(headRef.current);
+	const lastOpen = useRef(isOpen);
+
+	useEffect(() => setRVal(value), [value]);
+
+	return { 
+		smallScreen, 
+		rVal, 
+		setRVal, 
+		headRef, 
+		chevRef, 
+		listRef, 
+		lensRef, 
+		snapTimeout, 
+		skipSnapRef, 
+		isOpen, 
+		lastOpen, 
+		allowType, 
+		numericOnly, 
+		realtimeUpdate, 
+		errorInfo, 
+		dropHeaderID, 
+		placeholder 
+	};
+};
+
 /** Finite pseudo-rolling drop select */
 export const DropSelect = ({ 
 	options = [], 
@@ -66,6 +110,18 @@ export const DropSelect = ({
 			listRef.current.scrollTop = (middleIdx * uniqueHeight) + (optIdx * optHeight);
 		}
 	}, [isOpen]);
+
+	// snap to first display that meets starts with the current display
+	useEffect(() => {
+		if (smallScreen || !isOpen || !listRef || !listRef.current || !realtimeUpdate) { return }
+		const uniqueHeight = listRef.current.scrollHeight / repeats;
+		const optIdx = options.findIndex(opt => opt?.display.startsWith(value?.display));
+		const optHeight = listRef.current.scrollHeight / paddedOptions.length;
+		// No found idx returns -1
+		if (optIdx >= 0) {
+			listRef.current.scrollTop = (middleIdx * uniqueHeight) + (optIdx * optHeight);
+		}
+	}, [value]);
 
 	/** Handle rollover scrolling */
 	const handleRolloverScroll = (elm) => {
@@ -249,7 +305,27 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 }
 
 /** Render the scrollable dropdown menu used by the DropSelects */
-const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID, placeholder }) => {
+const DropView = ({ 
+	isOpen, 
+	lastOpen, 
+	options, 
+	value, 
+	setter, 
+	rVal, 
+	setRVal, 
+	allowType, 
+	numericOnly, 
+	realtimeUpdate, 
+	errorInfo, 
+	headRef, 
+	chevRef, 
+	listRef, 
+	lensRef, 
+	scrollHandler, 
+	width, 
+	dropHeaderID, 
+	placeholder 
+}) => {
 	const { smallScreen = false } = useScreen() || {};
 
 	const handleArrow = useCallback((e) => {
