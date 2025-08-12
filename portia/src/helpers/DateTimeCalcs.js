@@ -2,7 +2,7 @@ import { RRule } from 'rrule';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
 import { v4 as uuid } from 'uuid';
-
+import { clamp } from './Misc';
 
 // Find user's timezone on load and generate recurrences accordingly
 export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
@@ -244,9 +244,6 @@ export const editFriendlyDateTime = (date) => {
 		weekday: String(getDayOfWeek(date, false)),
 	}
 };
-
-// Clamp value between min and max
-export const clamp = (v, min, max) => Math.min(Math.max(min, max), Math.max(min, v));
 
 // Convert parts to js date
 export const calcFriendlyDateTime = (unit, baseDate, updatedParts) => {

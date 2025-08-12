@@ -143,6 +143,8 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 									value={{ display: String(date.getFullYear()), value: date.getFullYear() }}
 									setter={(newVal) => commitPart(unit, newVal)}
 									allowType={true}
+									realtimeUpdate={true}
+									commitEmpty={false}
 								/>
 								:
 								<DropSelect
@@ -150,8 +152,10 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 									options={createOptions(unit)}
 									value={createDefaults(unit)}
 									setter={(newVal) => commitPart(unit, newVal)}
-									allowType={!(['weekday', 'month'].includes(unit))}
-									numericOnly={['day', 'hour', 'minute'].includes(unit)}
+									allowType={!(['weekday', 'month'].includes(unit))} // Limit to options
+									numericOnly={['day', 'hour', 'minute'].includes(unit)} // Allow typing
+									realtimeUpdate={['day', 'hour', 'minute'].includes(unit)} // Update location and value based on typed value
+									commitEmpty={false}
 								/>
 							}
 					</div>
@@ -723,12 +727,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	// Handle dynamic path for form loading
 	useEffect(() => {
-		const inputPath = form.path;
-		const inputLength = inputPath.split('/').length;
+		const inputPath = form.path; // use form.path to indicate the current path typed in the UI
+		const inputLength = inputPath.split('/').length; // get dir count in path
 
-		const filteredPaths = allForms.map(f => 
+		const filteredPaths = allForms.map(f => // Map to just the path 
 				f.path
-			).filter(p => {
+			).filter(p => { // Filter out directories w/o matching parents and those w/ fewer dirs in path than the typed
 				const sameParents = p.split('/').slice(0, inputLength - 1).join('/') === inputPath.split('/').slice(0, inputLength - 1).join('/');
 				const longerThanSuggestion = inputLength > p.split('/').length;
 				return sameParents && !longerThanSuggestion;

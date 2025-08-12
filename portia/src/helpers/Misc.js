@@ -1,6 +1,10 @@
 import { v4 as uuid } from 'uuid';
 
+// Convert snake_case to camelCase
 export const toCamel = (prop) => prop.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+
+// Clamp value between min and max
+export const clamp = (v, min, max) => Math.min(Math.max(min, max), Math.max(min, v));
 
 export const assignKeys = (obj) => {
 
