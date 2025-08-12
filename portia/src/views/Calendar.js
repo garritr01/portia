@@ -13,9 +13,6 @@ import {
 } from '../helpers/DateTimeCalcs';
 import { useCalendarDataHandler } from '../helpers/DataHandlers';
 import {
-	makeEmptyForm,
-	makeEmptyEvent,
-	makeEmptySchedule,
 	initialCompositeState,
 	updateComposite,
 	initEmptyComposite,

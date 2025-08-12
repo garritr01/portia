@@ -5,7 +5,7 @@ import {
 	FiX,
 	FiCalendar,
 	FiFileText,
-	FiRotateCcw,
+	FiTrash2,
 	FiCheckSquare,
 	FiSave,
 	FiCheckCircle,
@@ -109,7 +109,7 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
 			}
 		} catch (err) {
-			console.exception(`Erred committing ${newVal} to ${unit} in InteractiveTime`);
+			console.error(`Erred committing ${newVal} to ${unit} in InteractiveTime`);
 		}
 	}
 
@@ -179,12 +179,12 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 	)
 }
 
-const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
+const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceComposite, syncStartAndEnd, setSyncStartAndEnd, setLastSchedule }) => {
 
 	const handleCommitSchedule = () => {
 		// Push endStamp a week forward if weekly and before start stamp (hack to allow weekly event sat -> sun etc)
 		const valid = validateSchedule(schedule);
-		reduceComposite({ type: 'update', errors: { ...errors, schedules: valid.validity } });
+		reduceComposite({ type: 'drill', path: ['errors', 'schedules', editSchedule], value: valid.validity });
 		if (!valid.isValid) {
 			return;
 		}
@@ -195,6 +195,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 		};
 		reduceComposite({ type: 'drill', path: ['schedules', editSchedule], value: newSchedule });
 		setEditSchedule(null);
+		setLastSchedule(schedule);
 	};
 
 	return (
@@ -297,7 +298,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 
 			{/** REVERT OR COMMIT */}
 			<div className="submitRow right">
-				<FiCheckSquare className="submitButton" onClick={() => handleCommitSchedule()} />
+				<FiCheckSquare className="submitButton" onClick={() => schedule.period && handleCommitSchedule()} />
 			</div>
 
 		</div>
@@ -309,28 +310,31 @@ const SchedulePreview = ({ schedules, reduceComposite, setEditSchedule }) => {
 	return (
 		<div className="form">
 			<div className="formRow"><strong className="formCell">Schedules</strong></div>
-			{schedules.map((rule, idx) =>
-				rule.period && (
-					<div className="form wButtonRow">
+			{Object.entries(schedules).map(([key, sched]) =>
+				sched.period && (
+					<div key={key} className="form wButtonRow">
 						<div className="submitRow right">
-							<FiEdit className="submitButton" onClick={() => setEditSchedule(idx)}/>
-							<FiX className="submitButton" onClick={() => reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== idx) })}/>
+							<FiEdit className="submitButton" onClick={() => setEditSchedule(key)}/>
+							{sched._id ?
+								<FiTrash2 className="submitButton" onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key] })} />
+								: <FiX className="submitButton" onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key] })}/>
+							}
 						</div>
 						<div className="formRow">
 							<strong className="formCell">Anchor:</strong>
-							<p className="formCell">{viewFriendlyDateTime(rule.startStamp)}</p>
+							<p className="formCell">{viewFriendlyDateTime(sched.startStamp)}</p>
 							<p className="formCell">-</p>
-							<p className="formCell">{viewFriendlyDateTime(rule.endStamp, true)}</p>
+							<p className="formCell">{viewFriendlyDateTime(sched.endStamp, true)}</p>
 						</div>
-						{rule.period !== 'single' &&
+						{sched.period !== 'single' &&
 							<div className="formRow">
 								<strong className="formCell">Repeat:</strong>
 								<p className="formCell">Every</p>
-								{rule.interval > 1 ?
-									<p className="formCell">{rule.interval}{periodOptions.find((opt) => opt.value === rule.period)?.altDisplay}s</p>
-									: <p className="formCell">{periodOptions.find((opt) => opt.value === rule.period)?.altDisplay}</p>
+								{sched.interval > 1 ?
+									<p className="formCell">{sched.interval}{periodOptions.find((opt) => opt.value === sched.period)?.altDisplay}s</p>
+									: <p className="formCell">{periodOptions.find((opt) => opt.value === sched.period)?.altDisplay}</p>
 								}		
-								{rule.until && <p className="formCell">until {viewFriendlyDateTime(rule.until)}</p>}
+								{sched.until && <p className="formCell">until {viewFriendlyDateTime(sched.until)}</p>}
 							</div>
 						}
 					</div>
@@ -367,7 +371,7 @@ const FormForm = ({ form, errors, changeField, reduceComposite }) => {
 			return;
 		}
 
-		const optionsCopy = [...form.info[idx].options];
+		const optionsCopy = [ ...form.info[idx].options ];
 		reduceComposite({
 			type: 'drill',
 			path: ['form', 'info', idx, 'options'],
@@ -602,39 +606,42 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 
 export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
-	const { form, event, schedules, dirty, errors } = composite;
-	const [pendingSave, setPendingSave] = useState(false);
-	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]);
-	const [editSchedule, setEditSchedule] = useState(null);
-	const schedule = editSchedule !== null ? schedules[editSchedule] : null;
-	const [edit, setEdit] = useState(false);
+	const { form, event, schedules, dirty, toDelete, errors } = composite;
+	const [pendingSave, setPendingSave] = useState(false); // Toggle to allow for updates before saving
+	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]); // Hold suggested paths for quick loading
+	const [editSchedule, setEditSchedule] = useState(null); // Hold _id of schedule currently being edited
+	const schedule = editSchedule !== null ? schedules[editSchedule] : null; // Hold schedule currently being updated
+	const [lastSchedule, setLastSchedule] = useState({}); // Hold last committed schedule for adding multiple similar schedules quickly
+	const [edit, setEdit] = useState(false); // Toggle for editing form
 	const [syncStartAndEnd, setSyncStartAndEnd] = useState({
 		eventStart: !form.includeStart,
 		eventEnd: true,
 		scheduleEnd: true,
 		scheduleUntil: true
-	});
+	}); // Hold synchronization flags for timeStamps
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);
+	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
-	//useEffect(() => console.log("errors:\n", errors), [errors]);
+	useEffect(() => console.log("errors:\n", errors), [errors]);
+	useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
 	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Holds last state for easy reversion
 	const ogState = useRef({
 		form: { ...form, info: [...form.info] },
 		schedule: {},
+		formDirty: dirty.form,
+		schedulesDirty: { ...dirty.schedules }
 	});
 
 	// Ensure current schedule is truly the current schedule
 	useEffect(() => {
 		ogState.current.schedule = editSchedule !== null ? { ...schedules[editSchedule] } : {};
-		//console.log('ogSched:', editSchedule !== null ? { ...schedules[editSchedule] } : {});
 	}, [editSchedule]);
 
-	// Ensure event sync start with end corresponds to form.includeStart
+	// Ensure event sync start with end corresponds to form.includeStart (so empty start syncs with end)
 	useEffect(() => {
 		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
 	}, [form.includeStart]);
@@ -730,12 +737,31 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		setSuggPaths(uniquePaths);
 	}, [form.path]);
 
+	const uploadByPath = () => {
+		const matchedSchedulesList = allSchedules.filter(s => s.path === form.path);
+		const matchedSchedules = Object.fromEntries(
+			matchedSchedulesList.map(s => [s._id, s])
+		);
+		const matchedForm = allForms.find(f => f.path === form.path)
+		reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
+		updateEventUI(matchedForm.info, false);
+		ogState.current.formDirty = false;
+		Object.keys(matchedSchedules).forEach(k => {
+			ogState.current.schedulesDirty[k] = false;
+		});
+	}
+
 	// Update event info for filling out based on form info without removing event content already present
-	const updateEventUI = (updatedFormInfo) => {
+	const updateEventUI = (updatedFormInfo, usePrev = true) => {
 		const updatedEventInfo = updatedFormInfo.map((f, idx) => {
+			// Get info from previous event
 			const prevEvent = event.info.find(e => (e.label === f.label && 'content' in e));
+
+			// Drop values from form field event should not contain
 			const { baseValue, suggestions, placeholder, options, ...cleanedF } = f;
-			if (prevEvent) {
+
+			// Use previous field content if present, otherwise autofill with baseValue
+			if (prevEvent && usePrev) {
 				return { ...cleanedF, content: prevEvent.content };
 			} else {
 				const emptyContent = 
@@ -746,7 +772,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				console.log(`Setting ${f.type} content at ${idx} to: `, emptyContent);
 				return { ...cleanedF, content: emptyContent }
 			}
+
 		});
+		// Key dynamic fields (for rendering)
 		const newEvent = assignKeys({ ...event, info: updatedEventInfo });
 		reduceComposite({
 			type: 'update',
@@ -757,41 +785,49 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	// Update schedules to include a new one autofilling based on previous or event timestamps
 	const handleCreateSchedule = () => {
 		if (editSchedule === null) {
-			const lastSched = schedules.length > 0 ? schedules[schedules.length - 1] : null;
-			setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: true, scheduleUntil: lastSched?.until ? true : false }))
-			setEditSchedule(schedules.length);
+			setSyncStartAndEnd(prev => ({ 
+				...prev, 
+				scheduleEnd: true, // reset scheduleEnd to sync to start
+				scheduleUntil: lastSchedule?.until ? true : false // reset scheduleUntil to sync to start and end if not repeat forever
+			}))
 			const newSchedule = {
-				...makeEmptySchedule(event.path),
-				startStamp: lastSched ? lastSched.startStamp : event.startStamp,
-				endStamp: lastSched ? lastSched.endStamp : event.endStamp,
-				until: lastSched ? lastSched.until : event.endStamp
+				...makeEmptySchedule(),
+				path: event.path,
+				startStamp: lastSchedule ? lastSchedule.startStamp : event.startStamp,
+				endStamp: lastSchedule ? lastSchedule.endStamp : event.endStamp,
+				until: lastSchedule ? lastSchedule.until : event.endStamp
 			};
-			reduceComposite({ type: 'drill', path: ['schedules', schedules.length], value: newSchedule });
+			// Create new schedule with uuid key
+			const schedKey = `new_${uuid()}`;
+			reduceComposite({ type: 'drill', path: ['schedules', schedKey], value: newSchedule });
+			ogState.current.schedulesDirty[schedKey] = false;
+			setEditSchedule(schedKey);
 		} else {
 			handleRevertSchedule();
 		}
-	}
+	};
 
 	// Reset to last committed state
 	const handleRevertSchedule = () => {
 		// Revert if ogState is not empty, otherwise delete
 		const old = ogState.current.schedule;
-		if (old.period) {
-			console.log("Reverting existing og schedule.")
-			reduceComposite({
-				type: 'drill',
-				path: ['schedules', editSchedule],
-				value: old,
-			});
-		} else {
-			console.log("Reverting absent og schedule.")
-			reduceComposite({ type: 'update', schedules: schedules.filter((_, i) => i !== editSchedule) });
-		}
+		console.log("Reverting existing og schedule.")
+		reduceComposite({
+			type: 'drill',
+			path: ['schedules', editSchedule],
+			value: old,
+			dirty: ogState.current.schedulesDirty[editSchedule],
+		});
 		setEditSchedule(null);
 	};
 
 	const handleRevertForm = () => {
-		reduceComposite({ type: 'update', form: ogState.current.form });
+		reduceComposite({ 
+			type: 'drill', 
+			path: ['form'], 
+			value: ogState.current.form,
+			dirty: ogState.current.formDirty
+		});
 		setEdit(false);
 	};
 
@@ -806,6 +842,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			...form,
 			info: [...form.info]
 		};
+		ogState.current.formDirty = true;
 		setEdit(false);
 		updateEventUI(form.info);
 	};
@@ -848,7 +885,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			if (!valid.isValid) { return }
 			updateSuggestions();
 		} else {
-			reduceComposite({ type: 'controlDirty', dirty: { event: false } });
+			reduceComposite({ type: 'drill', path: ['event'], value: event, dirty: false });
 		}
 		setPendingSave(true);
 	};
@@ -898,9 +935,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						setter={newPath => {
 							changeField(['form', 'path'], newPath);
 							changeField(['event', 'path'], newPath);
-							for (let ctr = 0; ctr < schedules.length; ctr++) {
-								changeField(['schedules', ctr, 'path'], newPath);
-							}
+							Object.keys(schedules).forEach(k => {
+								changeField(['schedules', k, 'path'], newPath);
+							});
 						}}
 						allowType={true}
 						realtimeUpdate={true}
@@ -912,21 +949,8 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 							<FiUpload 
 								className="relButton" 
 								tabIndex={-1}
-								onClick={() => {
-									const matchedSchedules = allSchedules.filter(s => s.path === form.path);
-									const matchedForm = allForms.find(f => f.path === form.path)
-									reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
-									updateEventUI(matchedForm.info);
-								}}
-								onKeyDown={e => {
-									if (e.key === 'Enter') {
-										e.preventDefault();   // prevent page scroll on Space
-										const matchedSchedules = allSchedules.filter(s => s.path === form.path);
-										const matchedForm = allForms.find(f => f.path === form.path)
-										reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
-										updateEventUI(matchedForm.info);
-									}
-								}}
+								onClick={() => uploadByPath()}
+								onKeyDown={e => e.key === 'Enter' && uploadByPath()}
 							/>
 						</div>
 						: 
@@ -945,12 +969,13 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						setEditSchedule={setEditSchedule}
 						schedule={editSchedule !== null ? schedules[editSchedule] : null}
 						schedules={schedules}
-						errors={errors.schedules}
+						errors={errors.schedules?.[editSchedule]}
 						reduceComposite={reduceComposite}
 						syncStartAndEnd={syncStartAndEnd}
 						setSyncStartAndEnd={setSyncStartAndEnd}
+						setLastSchedule={setLastSchedule}
 						/>
-				: (schedules.length > 0) &&
+				: Object.keys(schedules).length > 0 &&
 					<SchedulePreview 
 						schedules={schedules}
 						reduceComposite={reduceComposite}
@@ -1069,6 +1094,11 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						handleRevertForm(); 
 					}
 					}}/>
+				<FiTrash2 className={toDelete.event ? "submitButton selected" : "submitButton"}
+					onClick={() =>
+						reduceComposite({ type: 'delete', path: ['event'], delete: !toDelete.event })
+					}
+					/>
 				{/** Blur so value is committed on save */}
 				<FiCheckCircle className="submitButton" 
 					onMouseDown={() => document.activeElement.blur()} 

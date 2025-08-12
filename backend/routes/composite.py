@@ -177,4 +177,4 @@ def upsertComposite(uID) -> dict:
 
 	# endregion
 
-	return jsonify({ "form": updatedForm, "event": updatedEvent, "schedules": updatedSchedules, "deletions": deletions }), 200
+	return jsonify({ "form": updatedForm, "event": _convertStamps2ISOString(updatedEvent), "schedules": _convertStamps2ISOString(updatedSchedules), "deletions": deletions }), 200
