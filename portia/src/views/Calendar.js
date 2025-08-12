@@ -151,7 +151,7 @@ export const DayView = ({
 			if (pDiff !== 0) { return pDiff }
 			return a._id.localeCompare(b._id); // Last (Guaranteed different) order by ids
 		});
-		const overlapEvents = daysEvents.filter(e => e.startStamp < date)
+		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ start: e.startStamp, end: e.endStamp, path: e.path, _id: e._id }));
 
 		// Get properties of relevant dummy elements for calculating absolute styles
 		let dayContentSnapshot;
@@ -263,7 +263,7 @@ export const DayView = ({
 				indents = potLeftOverlaps.length;
 			}
 
-			const topMembers = hourMembers[start.getHours()];
+			const topMembers = startsBefore ? overlapEvents : hourMembers[start.getHours()];
 			const topMemberSkips = topMembers.filter(mem => {
 				if (mem.start < start) { return true }
 				if (mem.start.getTime() === start.getTime()) {
