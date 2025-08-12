@@ -305,20 +305,26 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 	);
 }
 
-const SchedulePreview = ({ schedules, reduceComposite, editSchedule, setEditSchedule }) => {
+const SchedulePreview = ({ schedules, schedulesToDelete, reduceComposite, editSchedule, setEditSchedule }) => {
 
 	return (
 		<div className="form">
 			<div className="formRow"><strong className="formCell">Schedules</strong></div>
 			{Object.entries(schedules).map(([key, sched]) => {
 				if (key === editSchedule) { return }
-				return (
-					<div key={key} className="form wButtonRow">
+				const willBeDeleted = schedulesToDelete?.[key];
+				return (	
+					<div key={key} className={`form wButtonRow ${willBeDeleted ? 'strikeThrough' : ''}`}>
 						<div className="submitRow right">
 							<FiEdit className="submitButton" onClick={() => setEditSchedule(key)}/>
-							{sched._id ?
-								<FiTrash2 className="submitButton" onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key] })} />
-								: <FiX className="submitButton" onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key] })}/>
+							{
+								sched._id ?
+									<FiTrash2 className={`submitButton ${willBeDeleted ? 'selected' : ''}`}
+										onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key], delete: !willBeDeleted })} 
+										/>
+								: <FiX className={`submitButton ${willBeDeleted ? 'selected' : ''}`}
+										onClick={() => reduceComposite({ type: 'delete', path: ['schedules', key], delete: !willBeDeleted })}
+										/>
 							}
 						</div>
 						<div className="formRow">
@@ -984,6 +990,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				Object.keys(schedules).length > 0 &&
 					<SchedulePreview 
 						schedules={schedules}
+						schedulesToDelete={toDelete?.schedules || []}
 						reduceComposite={reduceComposite}
 						editSchedule={editSchedule}
 						setEditSchedule={setEditSchedule}

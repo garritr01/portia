@@ -1004,6 +1004,11 @@ body,
 	animation: flashRed 2s ease-in-out;
 }
 
+.strikeThrough,
+.strikeThrough * {
+	text-decoration: line-through;
+}
+
 /* #endregion ---- NOTIFICATIONS ---- */
 
 /* #region ---- MASS UPDATE ---- */
