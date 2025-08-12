@@ -5,15 +5,17 @@ import { useScreen } from '../contexts/ScreenContext';
 import { measureTextWidth } from '../helpers/Measure';
 import { ErrorInfoButton } from './Notifications';
 
-const useDropCore = ({ 
-	value, 
-	allowType,
-	numericOnly,
-	realtimeUpdate,
-	errorInfo,
-	dropHeaderID,
+const useDropCore = ({
+	isInf,
+	value,
+	options,
 	placeholder,
+	realtimeUpdate,
+	middleIdx = null,
+	repeats = null,
+	paddedOptions = null
 }) => {
+
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
 	const [rVal, setRVal] = useState(value);
@@ -22,80 +24,95 @@ const useDropCore = ({
 	const listRef = useRef(null);
 	const lensRef = useRef(null);
 	const snapTimeout = useRef(null);
-	const skipSnapRef = useRef(false);
 	const isOpen = currentNav instanceof HTMLElement && headRef.current instanceof HTMLElement && currentNav.contains(headRef.current);
 	const lastOpen = useRef(isOpen);
 
+	// Keep rVal synced with value
 	useEffect(() => setRVal(value), [value]);
 
-	return { 
-		smallScreen, 
-		rVal, 
-		setRVal, 
-		headRef, 
-		chevRef, 
-		listRef, 
-		lensRef, 
-		snapTimeout, 
-		skipSnapRef, 
-		isOpen, 
-		lastOpen, 
-		allowType, 
-		numericOnly, 
-		realtimeUpdate, 
-		errorInfo, 
-		dropHeaderID, 
-		placeholder 
+	// Measure each display in options and return the max width to define dropdown width
+	const [width, setWidth] = useState(0);
+	useEffect(() => {
+		if (!headRef.current) { return }
+		const style = window.getComputedStyle(headRef.current);
+		const maxWidth = [...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt?.display || '', style)), 0);
+		setWidth(maxWidth);
+	}, [options, value]);
+
+	// start on selected value
+	useEffect(() => {
+		if (!isOpen || !listRef || !listRef.current) { return }
+		const optIdx = options.findIndex(opt => opt?.value === value?.value);
+		// No found idx returns -1
+		if (optIdx >= 0) {
+			if (isInf) {
+				const optHeight = listRef.current.scrollHeight / options.length;
+				listRef.current.scrollTop = (optIdx * optHeight);
+			} else {
+				const optHeight = listRef.current.scrollHeight / paddedOptions.length;
+				const uniqueHeight = listRef.current.scrollHeight / repeats;
+				listRef.current.scrollTop = (middleIdx * uniqueHeight) + (optIdx * optHeight);
+			}
+		}
+	}, [isOpen]);
+
+	// snap to first display that meets starts with the current display
+	useEffect(() => {
+		if (smallScreen || !realtimeUpdate || !isOpen || !listRef || !listRef.current) { return }
+		const optIdx = options.findIndex(opt => opt?.display.startsWith(value?.display));
+		// No found idx returns -1
+		if (optIdx >= 0) {
+			if (isInf) {
+				const optHeight = listRef.current.scrollHeight / options.length;
+				listRef.current.scrollTop = (optIdx * optHeight);
+			} else {
+				const uniqueHeight = listRef.current.scrollHeight / repeats;
+				const optHeight = listRef.current.scrollHeight / paddedOptions.length;
+				listRef.current.scrollTop = (middleIdx * uniqueHeight) + (optIdx * optHeight);
+			}
+		}
+	}, [value]);
+
+	return {
+		smallScreen,
+		rVal, setRVal,
+		width,
+		headRef, chevRef, listRef, lensRef,
+		snapTimeout,
+		isOpen, lastOpen
 	};
 };
 
-/** Finite pseudo-rolling drop select */
-export const DropSelect = ({ 
-	options = [], 
+const useNonInfDropCore = ({ 
 	value, 
-	setter,
-	errorInfo, 
-	dropHeaderID,
-	placeholder = '',
-	allowType = false, 
-	numericOnly = false, 
-	realtimeUpdate = false, 
+	options, 
+	middleIdx, 
+	repeats, 
+	paddedOptions, 
+	placeholder, 
+	realtimeUpdate 
 }) => {
+	
 	const { smallScreen = false } = useScreen() || {};
 	const { currentNav } = useKeyNav() || {};
-
-	// Repeat until 20 options present, using at least 4 copies
-	const repeats = options.length === 0 ? 20
-		: options.length >= 5 ? 4 
-		: Math.ceil(20 / options.length);
-	// Defines starting index and number of copies to bounce (4 -> 1), (5, 6 -> 2)
-	const middleIdx = Math.ceil(repeats / 2) - 1;
-	const paddedOptions = Array(repeats).fill(options).flat();
-	// Holds typed value
 	const [rVal, setRVal] = useState(value);
-	// Width to use
-	const [width, setWidth] = useState(0);
-	// positional refs
 	const headRef = useRef(null);
 	const chevRef = useRef(null);
 	const listRef = useRef(null);
 	const lensRef = useRef(null);
 	const snapTimeout = useRef(null);
-
-	// Keep rVal synced with composite
-	useEffect(() => setRVal(value), [value]);
-
-	const isOpen =
-		currentNav instanceof HTMLElement
-		&& headRef.current instanceof HTMLElement
-		&& currentNav.contains(headRef.current);
+	const isOpen = currentNav instanceof HTMLElement && headRef.current instanceof HTMLElement && currentNav.contains(headRef.current);
 	const lastOpen = useRef(isOpen);
 
+	// Keep rVal synced with value
+	useEffect(() => setRVal(value), [value]);
+
 	// Measure each display in options and return the max width to define dropdown width
+	const [width, setWidth] = useState(0);
 	useEffect(() => {
 		if (!headRef.current) { return }
 		const style = window.getComputedStyle(headRef.current);
-		const maxWidth = [ ...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt?.display || '', style)), 0);
+		const maxWidth = [...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt?.display || '', style)), 0);
 		setWidth(maxWidth);
 	}, [options, value]);
 
@@ -122,6 +139,120 @@ export const DropSelect = ({
 			listRef.current.scrollTop = (middleIdx * uniqueHeight) + (optIdx * optHeight);
 		}
 	}, [value]);
+
+	return { 
+		smallScreen,
+		rVal, setRVal,
+		width,
+		headRef, chevRef, listRef, lensRef,
+		snapTimeout,
+		isOpen, lastOpen
+	};
+};
+
+const useInfDropCore = ({
+	value,
+	options,
+	placeholder,
+	realtimeUpdate
+}) => {
+	const { smallScreen = false } = useScreen() || {};
+	const { currentNav } = useKeyNav() || {};
+	// NOTE - .value is just so I can reuse the same DropView
+
+	const [rVal, setRVal] = useState(value);
+	const headRef = useRef(null);
+	const chevRef = useRef(null);
+	const listRef = useRef(null);
+	const lensRef = useRef(null);
+	const snapTimeout = useRef(null);
+
+	const isOpen =
+		currentNav instanceof HTMLElement
+		&& headRef.current instanceof HTMLElement
+		&& currentNav.contains(headRef.current);
+	const lastOpen = useRef(isOpen);
+
+	// Keep rVal synced with composite
+	useEffect(() => setRVal(value), [value]);
+
+	// Measure each display in options and return the max width to define dropdown width
+	const [width, setWidth] = useState(0);
+	useEffect(() => {
+		if (!headRef.current) { return }
+		const style = window.getComputedStyle(headRef.current);
+		const maxWidth = [...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt?.display || '', style)), 0);
+		setWidth(maxWidth);
+	}, [options, value]);
+
+	// Snap to selected if open
+	useEffect(() => {
+		if (!isOpen || !listRef || !listRef.current) { return }
+		const optIdx = options.findIndex(opt => opt?.value === value?.value);
+		const optHeight = listRef.current.scrollHeight / options.length;
+		if (optIdx >= 0) { 
+			listRef.current.scrollTop = (optIdx * optHeight); 
+		}
+	}, [isOpen]);
+
+	// snap to first display that meets starts with the current display
+	useEffect(() => {
+		if (smallScreen || !isOpen || !listRef || !listRef.current || !realtimeUpdate) { return }
+		const optIdx = options.findIndex(opt => opt?.value.startsWith(value?.value));
+		const optHeight = listRef.current.scrollHeight / options.length;
+		if (optIdx >= 0) {
+			listRef.current.scrollTop = (optIdx * optHeight);
+		}
+	}, [value]);
+
+	return {
+		smallScreen,
+		rVal, setRVal,
+		width,
+		headRef, chevRef, listRef, lensRef,
+		snapTimeout,
+		isOpen, lastOpen
+	};	
+};
+
+/** Finite pseudo-rolling drop select */
+export const DropSelect = ({ 
+	options = [], 
+	value, 
+	setter,
+	errorInfo, 
+	dropHeaderID,
+	placeholder = '',
+	allowType = false, 
+	numericOnly = false, 
+	realtimeUpdate = false, 
+}) => {
+
+	// Repeat until 20 options present, using at least 4 copies
+	const repeats = options.length === 0 ? 20
+		: options.length >= 5 ? 4
+			: Math.ceil(20 / options.length);
+	// Defines starting index and number of copies to bounce (4 -> 1), (5, 6 -> 2)
+	const middleIdx = Math.ceil(repeats / 2) - 1;
+	const paddedOptions = Array(repeats).fill(options).flat();
+
+	const {
+		smallScreen,
+		rVal, setRVal,
+		width,
+		headRef, chevRef, listRef, lensRef,
+		snapTimeout,
+		isOpen, lastOpen
+	} = useDropCore({
+		isInf: false,
+		value, 
+		options, 
+		placeholder, 
+		realtimeUpdate, 
+		middleIdx, 
+		repeats, 
+		paddedOptions
+	});
 
 	/** Handle rollover scrolling */
 	const handleRolloverScroll = (elm) => {
@@ -170,7 +301,7 @@ export const DropSelect = ({
 			placeholder={placeholder}
 		/>
 	);
-}
+};
 
 /** Infinite numerical drop select */
 export const InfDropSelect = ({ 
@@ -185,23 +316,6 @@ export const InfDropSelect = ({
 	allowType = false, 
 	realtimeUpdate = false,
 }) => {
-	const { smallScreen = false } = useScreen() || {};
-	const { currentNav } = useKeyNav() || {};
-	// NOTE - .value is just so I can reuse the same DropView
-
-	const [rVal, setRVal] = useState(value);
-	const headRef = useRef(null);
-	const chevRef = useRef(null);
-	const listRef = useRef(null);
-	const lensRef = useRef(null);
-	const snapTimeout = useRef(null);
-
-	const isOpen =
-		currentNav instanceof HTMLElement
-		&& headRef.current instanceof HTMLElement
-		&& currentNav.contains(headRef.current);
-	const lastOpen = useRef(isOpen);
-
 	const [start, setStart] = useState(value.value - buffer);
 	const options = useMemo(() => {
 		return Array.from({ length: (3 * buffer) }, (_, i) => (
@@ -211,16 +325,20 @@ export const InfDropSelect = ({
 		));
 	}, [start]);
 
-	// Keep rVal synced with composite
-	useEffect(() => setRVal(value), [value]);
-
-	// Snap to selected if open
-	useEffect(() => {
-		if (!isOpen || !listRef || !listRef.current) { return }
-		const optIdx = options.findIndex(opt => opt.value === value.value);
-		const optHeight = listRef.current.scrollHeight / options.length;;
-		if (optIdx >= 0) { listRef.current.scrollTop = (optIdx * optHeight); }
-	}, [isOpen]);
+	const {
+		smallScreen,
+		rVal, setRVal,
+		width,
+		headRef, chevRef, listRef, lensRef,
+		snapTimeout,
+		isOpen, lastOpen
+	} = useDropCore({
+		isInf: true,
+		value,
+		options,
+		placeholder,
+		realtimeUpdate
+	});
 
 	const handleInfScroll = (elm) => {
 		const scrollHeight = elm.scrollHeight;
@@ -271,14 +389,14 @@ export const InfDropSelect = ({
 			listRef={listRef}
 			lensRef={lensRef}
 			scrollHandler={handleInfScroll}
-			width={'2.25rem'}
+			width={width}
 			numericOnly={true}
 			errorInfo={errorInfo}
 			dropHeaderID={dropHeaderID}
 			placeholder={placeholder}
 		/>
 	);
-}
+};
 
 /** Snap to nearest value and set it if smallScreen */
 const snapCallback = (options, setRVal, listRef, lensRef) => {
@@ -302,7 +420,7 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 	});
 
 	setRVal(options[closestOption.idx]);
-}
+};
 
 /** Render the scrollable dropdown menu used by the DropSelects */
 const DropView = ({ 
@@ -444,4 +562,4 @@ const DropView = ({
 
 		</div>
 	);
-}
+};
