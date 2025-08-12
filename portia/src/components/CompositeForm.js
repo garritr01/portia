@@ -305,13 +305,14 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 	);
 }
 
-const SchedulePreview = ({ schedules, reduceComposite, setEditSchedule }) => {
+const SchedulePreview = ({ schedules, reduceComposite, editSchedule, setEditSchedule }) => {
 
 	return (
 		<div className="form">
 			<div className="formRow"><strong className="formCell">Schedules</strong></div>
-			{Object.entries(schedules).map(([key, sched]) =>
-				sched.period && (
+			{Object.entries(schedules).map(([key, sched]) => {
+				if (key === editSchedule) { return }
+				return (
 					<div key={key} className="form wButtonRow">
 						<div className="submitRow right">
 							<FiEdit className="submitButton" onClick={() => setEditSchedule(key)}/>
@@ -338,7 +339,7 @@ const SchedulePreview = ({ schedules, reduceComposite, setEditSchedule }) => {
 							</div>
 						}
 					</div>
-				)
+				)}
 			)}
 		</div>
 	);
@@ -622,10 +623,11 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
+	//useEffect(() => console.log("editSchedule:\n", editSchedule), [editSchedule]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
-	useEffect(() => console.log("errors:\n", errors), [errors]);
-	useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
+	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	//useEffect(() => console.log("errors:\n", errors), [errors]);
+	//useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
 	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Holds last state for easy reversion
@@ -793,9 +795,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 			const newSchedule = {
 				...makeEmptySchedule(),
 				path: event.path,
-				startStamp: lastSchedule ? lastSchedule.startStamp : event.startStamp,
-				endStamp: lastSchedule ? lastSchedule.endStamp : event.endStamp,
-				until: lastSchedule ? lastSchedule.until : event.endStamp
+				startStamp: lastSchedule?.startStamp ? lastSchedule.startStamp : event.startStamp,
+				endStamp: lastSchedule?.startStamp ? lastSchedule.endStamp : event.endStamp,
+				until: lastSchedule?.startStamp ? lastSchedule.until : event.endStamp
 			};
 			// Create new schedule with uuid key
 			const schedKey = `new_${uuid()}`;
@@ -961,9 +963,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 				</div>
 			</div>
 
-			{/** SCHEDULE */}
+			{/** EDIT SCHEDULE */}
 			{
-				schedule ?
+				schedule &&
 				  <ScheduleForm
 						editSchedule={editSchedule}
 						setEditSchedule={setEditSchedule}
@@ -975,10 +977,15 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						setSyncStartAndEnd={setSyncStartAndEnd}
 						setLastSchedule={setLastSchedule}
 						/>
-				: Object.keys(schedules).length > 0 &&
+			}
+
+			{/** PREVIEW SCHEDULES  */}
+			{
+				Object.keys(schedules).length > 0 &&
 					<SchedulePreview 
 						schedules={schedules}
 						reduceComposite={reduceComposite}
+						editSchedule={editSchedule}
 						setEditSchedule={setEditSchedule}
 						/>
 			}

@@ -51,7 +51,7 @@ export const DropSelect = ({
 	useEffect(() => {
 		if (!headRef.current) { return }
 		const style = window.getComputedStyle(headRef.current);
-		const maxWidth = [ ...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt.display, style)), 0);
+		const maxWidth = [ ...options, value, placeholder].reduce((max, opt) => Math.max(max, measureTextWidth(opt?.display || '', style)), 0);
 		setWidth(maxWidth);
 	}, [options, value]);
 
@@ -59,7 +59,7 @@ export const DropSelect = ({
 	useEffect(() => {
 		if (!isOpen || !listRef || !listRef.current) { return }
 		const uniqueHeight = listRef.current.scrollHeight / repeats;
-		const optIdx = options.findIndex(opt => opt.value === value.value);
+		const optIdx = options.findIndex(opt => opt?.value === value?.value);
 		const optHeight = listRef.current.scrollHeight / paddedOptions.length;
 		// No found idx returns -1
 		if (optIdx >= 0) {
@@ -252,16 +252,12 @@ const snapCallback = (options, setRVal, listRef, lensRef) => {
 const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, allowType, numericOnly, realtimeUpdate, errorInfo, headRef, chevRef, listRef, lensRef, scrollHandler, width, dropHeaderID, placeholder }) => {
 	const { smallScreen = false } = useScreen() || {};
 
-	//useEffect(() => console.log(`options ${dropHeaderID}`, options), []);
-	//useEffect(() => console.log(`value ${dropHeaderID}`, value), []);
-	//useEffect(() => console.log(`rVal ${dropHeaderID}`, rVal), []);
-
 	const handleArrow = useCallback((e) => {
 		if (!isOpen || !listRef?.current || e.ctrlKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }
 
 		e.preventDefault();
 		const addend = e.key === "ArrowDown" ? 1 : -1;
-		const currIdx = options.findIndex(opt => opt.value === rVal.value);
+		const currIdx = options.findIndex(opt => opt?.value === rVal?.value) ?? 0;
 		const nextIdx = (currIdx < 1 && addend < 0) ? options.length - 1 : (currIdx + addend) % options.length
 		const optHeight = listRef.current.scrollHeight / options.length;
 		listRef.current.scrollTop = (currIdx + addend) * optHeight;
@@ -292,11 +288,19 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 	const handleClose = (newVal = null) => {
 		if (newVal) {
 			//console.log("Setting with newVal: ", newVal);
-			setRVal(newVal);
-			setter(newVal.value);
+			if ('value' in newVal) {
+				setRVal(newVal);
+				setter(newVal.value);
+			} else {
+				console.warn("Cannot find newVal.value to use in setter.")
+			}
 		} else {
 			//console.log("Setting with rVal.value: ", rVal.value);
-			setter(rVal.value); // Closing should only cause an update in the small screen case
+			if (rVal && 'value' in rVal) {
+				setter(rVal.value); // Closing should only cause an update in the small screen case
+			} else {
+				console.warn("Cannot find rVal.value to use in setter.");
+			}
 		}
 		lastOpen.current = isOpen;
 	}
@@ -310,7 +314,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 				{allowType ?
 					<input
 						placeholder={placeholder}
-						value={rVal.display}
+						value={rVal?.display}
 						onChange={(e) => {
 							const val = numericOnly ? e.target.value.replace(/\D+/g, '') : e.target.value;
 							setRVal({ display: val, value: val })
@@ -322,7 +326,7 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 						style={{ width }}
 						inputMode={numericOnly ? "numeric" : undefined}
 					/>
-					: <p ref={headRef} style={{ width }}>{value.display}</p>
+					: <p ref={headRef} style={{ width }}>{value?.display}</p>
 				}
 
 				{/** Dropdown arrow for opening/closing */}
@@ -343,14 +347,21 @@ const DropView = ({ isOpen, lastOpen, options, value, setter, rVal, setRVal, all
 						onScroll={(e) => scrollHandler(e.target)}
 						style={{ top: allowType && '100%' }}
 						>
-						{options.map((option, idx) => (
-							<div
-								key={idx}
-								className={`droption ${option.value === rVal.value ? "selected" : ""}`}
-								onClick={() => handleClose(option)}>
-								{option.display}
-							</div>
-						))}
+						{options.map((option, idx) => {
+							let safeOption = option;
+							if (!('display'in option) || !('value' in option)) {
+								console.warn("Cannot use option: ", option)
+								safeOption = { display: 'Cannot display', value: 'invalid' }
+							}
+							return (
+								<div
+									key={idx}
+									className={`droption ${safeOption.value === rVal?.value ? "selected" : ""}`}
+									onClick={() => handleClose(safeOption)}>
+									{safeOption.display}
+								</div>
+							);
+						})}
 					</div>
 				</>
 			)}
