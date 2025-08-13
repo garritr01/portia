@@ -234,18 +234,14 @@ export const createCompositeFromEvent = (event, forms, schedules, reduceComposit
 	const newSchedList = schedules.filter(s => s.path === event.path);
 	const newScheds = Object.fromEntries(newSchedList.map(s => [s._id, s]));
 
-	if (event.complete === 'pending' && newForm.includeStart) {
-		event.endStamp = new Date();
-	}
-
-	event.info = event.info.map(f => {
-		const { placeholder, options, ...cleanedF } = f;
-		return cleanedF;
-	})
+	const newEvent = { 
+		...event,
+		endStamp: (event.complete === 'pending' && newForm.includeStart) ? new Date() : event.endStamp // Update endStamp to now if pending
+	};
 
 	reduceComposite({
 		type: 'set',
-		event: assignKeys(event),
+		event: assignKeys(newEvent),
 		form: assignKeys(newForm),
 		schedules: newScheds,
 	});

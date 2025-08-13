@@ -30,7 +30,7 @@ import { makeEmptySchedule } from '../helpers/HandleComposite';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
 
-export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey, date, errorInfo, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
+export const InteractiveTime = ({ text, type, objKey, schedKey = null, fieldKey, date, errorInfo, reduceComposite, syncStartAndEnd, setSyncStartAndEnd }) => {
 	const [rawParts, setRawParts] = useState(editFriendlyDateTime(null));
 	const [format, setFormat] = useState({ order: [] });
 
@@ -75,38 +75,47 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 				//console.log([objKey, fieldKey], upDate);
 				if (validUpDate) {
 					reduceComposite({ type: 'drill', path: [objKey, fieldKey], value: upDate });
-					// Handle syncing of start and end datetimes
+
+					// If editing end and start sync flag true, sync
 					if (syncStartAndEnd.eventStart && fieldKey === 'endStamp') { reduceComposite({ type: 'drill', path: [objKey, 'startStamp'], value: upDate }) }
+					// If editing end and start sync flag true, sync
 					if (syncStartAndEnd.eventEnd && fieldKey === 'startStamp') { reduceComposite({ type: 'drill', path: [objKey, 'endStamp'], value: upDate }) }
+
 				} else {
 					invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
 				}
-				// Handle ending sync
-				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventEnd: false })) }
-				if (fieldKey === 'startStamp') { setSyncStartAndEnd(prev => ({ ...prev, eventStart: false })) }
+
+				// end event start syncing when start manually edited
+				if (fieldKey === 'startStamp' && syncStartAndEnd?.eventStart) { setSyncStartAndEnd(prev => ({ ...prev, eventStart: false })) }
+				// end event end syncing when end manually edited
+				if (fieldKey === 'endStamp' && syncStartAndEnd?.eventEnd) { setSyncStartAndEnd(prev => ({ ...prev, eventEnd: false })) }
+
 			} else if (objKey === 'schedules') {
 				// 'schedules' case
-				//console.log([objKey, schedIdx, fieldKey], upDate);
+				//console.log([objKey, schedKey, fieldKey], upDate);
 				if (validUpDate) {
-					reduceComposite({ type: 'drill', path: [objKey, schedIdx, fieldKey], value: upDate });
+					reduceComposite({ type: 'drill', path: [objKey, schedKey, fieldKey], value: upDate });
 					// Handle syncing of datetimes
-					if (syncStartAndEnd.scheduleEnd && fieldKey === 'startStamp') {
-						reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'endStamp'], value: upDate });
-						if (syncStartAndEnd.scheduleUntil) { 
-							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate });
+					if (syncStartAndEnd.scheduleEnd && fieldKey === 'startStamp') { // If editing start and end sync flag true, sync
+						reduceComposite({ type: 'drill', path: [objKey, schedKey, 'endStamp'], value: upDate });
+						if (syncStartAndEnd.scheduleUntil) {  // If until sync flag also true, sync
+							reduceComposite({ type: 'drill', path: [objKey, schedKey, 'until'], value: upDate });
 						}
 					} 
-					if (syncStartAndEnd.scheduleUntil && fieldKey === 'endStamp') { 
-						reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: upDate });
+					if (syncStartAndEnd.scheduleUntil && fieldKey === 'endStamp') { // If editing end and until sync flag true, sync
+						reduceComposite({ type: 'drill', path: [objKey, schedKey, 'until'], value: upDate });
 					}
 				} else {
 					invalidInputFlash(`${objKey}_${fieldKey}_${unit}Input`);
 				}
-				// Handle ending sync
-				if (fieldKey === 'endStamp') { setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: false })) } 
-				if (fieldKey === 'until') { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) }
+
+				// end schedule end syncing when end manually edited
+				if (fieldKey === 'endStamp' && syncStartAndEnd?.scheduleEnd) { setSyncStartAndEnd(prev => ({ ...prev, scheduleEnd: false })) } 
+				// end schedule until syncing when until manually edited
+				if (fieldKey === 'until' && syncStartAndEnd?.scheduleUntil) { setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false })) }
+
 			} else {
-				console.warn("Unexpected combination of objKey and schedIdx: ", objKey, schedIdx);
+				console.warn("Unexpected combination of objKey and schedKey: ", objKey, schedKey);
 			}
 		} catch (err) {
 			console.error(`Erred committing ${newVal} to ${unit} in InteractiveTime`);
@@ -166,12 +175,12 @@ export const InteractiveTime = ({ text, type, objKey, schedIdx = null, fieldKey,
 				<button
 					className={`relButton ${!date ? 'selected' : ''}`}
 					onClick={() => {
-						if (!date) {
+						if (!date) { // Start syncing and add an until date
 							setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: true }));
-							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: new Date() });
-						} else {
+							reduceComposite({ type: 'drill', path: [objKey, schedKey, 'until'], value: new Date() });
+						} else { // End syncing and remove the until date
 							setSyncStartAndEnd(prev => ({ ...prev, scheduleUntil: false }));
-							reduceComposite({ type: 'drill', path: [objKey, schedIdx, 'until'], value: null });
+							reduceComposite({ type: 'drill', path: [objKey, schedKey, 'until'], value: null });
 						}
 					}}
 					>
@@ -259,7 +268,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 						text={'Start'}
 						type={schedule.period}
 						objKey={'schedules'}
-						schedIdx={editSchedule}
+						schedKey={editSchedule}
 						fieldKey={'startStamp'}
 						date={new Date(schedule.startStamp)}
 						reduceComposite={reduceComposite}
@@ -271,7 +280,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 						text={'End'}
 						type={schedule.period}
 						objKey={'schedules'}
-						schedIdx={editSchedule}
+						schedKey={editSchedule}
 						fieldKey={'endStamp'}
 						date={new Date(schedule.endStamp)}
 						reduceComposite={reduceComposite}
@@ -289,7 +298,7 @@ const ScheduleForm = ({ editSchedule, setEditSchedule, schedule, errors, reduceC
 					<InteractiveTime
 						text={'Until'}
 						objKey={'schedules'}
-						schedIdx={editSchedule}
+						schedKey={editSchedule}
 						fieldKey={'until'}
 						date={schedule.until ? new Date(schedule.until) : schedule.until}
 						reduceComposite={reduceComposite}
@@ -625,20 +634,20 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	const [lastSchedule, setLastSchedule] = useState({}); // Hold last committed schedule for adding multiple similar schedules quickly
 	const [edit, setEdit] = useState(false); // Toggle for editing form
 	const [syncStartAndEnd, setSyncStartAndEnd] = useState({
-		eventStart: !form.includeStart,
-		eventEnd: true,
-		scheduleEnd: true,
+		eventStart: !form.includeStart, // Sync start w/ end if included by form
+		eventEnd: (event?.startStamp && event?.endStamp && event?.startStamp.getTime() !== event?.endStamp.getTime()) ? false : true, // sync end w/ start if they are not init as different times
+		scheduleEnd: true,		
 		scheduleUntil: true
 	}); // Hold synchronization flags for timeStamps
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	//useEffect(() => console.log("event:\n", event), [event]);
+	useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("editSchedule:\n", editSchedule), [editSchedule]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
 	//useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
-	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
+	useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Holds last state for easy reversion
 	const ogState = useRef({
@@ -653,9 +662,9 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		ogState.current.schedule = editSchedule !== null ? { ...schedules[editSchedule] } : {};
 	}, [editSchedule]);
 
-	// Ensure event sync start with end corresponds to form.includeStart (so empty start syncs with end)
+	// Ensure event start syncs with end when start is omitted
 	useEffect(() => {
-		setSyncStartAndEnd(prev => ({ ...prev, eventStart: !form.includeStart }));
+		if (!form.includeStart) { setSyncStartAndEnd(prev => ({ ...prev, eventStart: true })) }
 	}, [form.includeStart]);
 
 	// For warning about misdefined values
@@ -799,23 +808,38 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	// Update schedules to include a new one autofilling based on previous or event timestamps
 	const handleCreateSchedule = () => {
 		if (editSchedule === null) {
+
+			let syncEnd = true;
+			let syncUntil = true;
+			const lastStart = lastSchedule?.startStamp;
+			const lastEnd = lastSchedule?.endStamp;
+			const lastUntil = lastSchedule?.until;
+			if (lastStart && lastEnd && lastStart.getTime() !== lastEnd.getTime()) {
+				syncEnd = false;
+			}
+			if (lastEnd && lastUntil && lastEnd.getTime() !== lastUntil.getTime()) {
+				syncUntil = false
+			}
+
 			setSyncStartAndEnd(prev => ({ 
 				...prev, 
-				scheduleEnd: true, // reset scheduleEnd to sync to start
-				scheduleUntil: lastSchedule?.until ? true : false // reset scheduleUntil to sync to start and end if not repeat forever
+				scheduleEnd: syncEnd, // reset scheduleEnd to sync to start
+				scheduleUntil: syncUntil // reset scheduleUntil to sync to start and end if not repeat forever
 			}))
 			const newSchedule = {
 				...makeEmptySchedule(),
 				path: event.path,
-				startStamp: lastSchedule?.startStamp ? lastSchedule.startStamp : event.startStamp,
-				endStamp: lastSchedule?.startStamp ? lastSchedule.endStamp : event.endStamp,
-				until: lastSchedule?.startStamp ? lastSchedule.until : event.endStamp
+				startStamp: lastStart ? lastStart : event.startStamp,
+				endStamp: lastEnd ? lastEnd : event.endStamp,
+				until: (lastUntil || lastUntil === null) ? lastUntil : event.endStamp
 			};
+
 			// Create new schedule with uuid key
 			const schedKey = `new_${uuid()}`;
 			reduceComposite({ type: 'drill', path: ['schedules', schedKey], value: newSchedule });
 			ogState.current.schedulesDirty[schedKey] = false;
 			setEditSchedule(schedKey);
+
 		} else {
 			handleRevertSchedule();
 		}
@@ -1077,7 +1101,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 			{/** START AND END DATETIMES */}
 			{form?.includeStart &&
-				// text, type, objKey, schedIdx, fieldKey, date, reduceComposite
+				// text, type, objKey, schedKey, fieldKey, date, reduceComposite
 				<InteractiveTime
 					text={'Start'}
 					type={'full'}
