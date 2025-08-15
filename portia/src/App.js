@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { LeftMenu } from './views/LeftMenu';
-import { useSwipe } from './helpers/DynamicView';
+import { useSmallScreen, useSwipe } from './helpers/DynamicView';
 import { Login, Logout, useUser } from './contexts/UserContext';
-import { useScreen } from './contexts/ScreenContext';
 import { DayView, MonthView, YearView } from './views/Calendar';
 import { useConnCheck, useAuthCheck } from './requests/Tests';
 import { returnDates, normDate } from './helpers/DateTimeCalcs';
@@ -17,7 +16,7 @@ export const App = () => {
 
 	// --- VIEW HANDLERS ----------------------------------------------------------------
 	// Screen dim context
-	const { smallScreen = false } = useScreen() || {};
+	const smallScreen = useSmallScreen() || false;
 	// Determines share of screen
 	const [leftExpanded, setLeftExpanded] = useState(false);
 	// Minimize left menu when small screen

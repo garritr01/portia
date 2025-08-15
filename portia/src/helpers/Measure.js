@@ -1,3 +1,5 @@
+// helpers/Measure.js
+
 import ReactDOMServer from 'react-dom/server';
 import { toCamel } from './Misc';
 

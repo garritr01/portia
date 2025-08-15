@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useReducer } from 'react';
 import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
-import { useScreen } from '../contexts/ScreenContext';
 import {
 	returnDates,
 	addTime,
@@ -21,7 +20,7 @@ import {
 } from '../helpers/HandleComposite';
 import { assignKeys } from '../helpers/Misc';
 import { typeCheck } from '../helpers/InputValidation';
-import { useSwipe } from '../helpers/DynamicView';
+import { useSwipe, useSmallScreen, useWindowSize } from '../helpers/DynamicView';
 import { getDummyStyle, getDummyWithChildrenStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
@@ -41,76 +40,17 @@ const colors = [
 
 const useCalendarMeasurements = ({ smallScreen, leftExpanded }) => {
 
-}
-
-export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
-	const months = returnDates(selectedDate, 'year');
-	const year = selectedDate.getFullYear();
-
-	return (
-		<>
-			<div className="navigationBar">
-				<button className="arrowButton" onClick={() => onMonthClick(addTime(selectedDate, { years: -1 }), 'year')}>❮❮❮</button>
-				<button className="navButton">{year}</button>
-				<button className="arrowButton" onClick={() => onMonthClick(addTime(selectedDate, { years: 1 }), 'year')}>❯❯❯</button>
-			</div>
-			<div className="yearView">
-				{months.map((date, idx) => (
-					<div key={idx} className="monthCell">
-						<div className="monthTitle" onClick={() => onMonthClick(date, 'month')}>{date.toLocaleString('default', { month: 'long' })}</div>
-						<div className="monthContent"></div>
-					</div>
-				))}
-			</div>
-		</>
-	);
 };
 
-export const MonthView = ({ selectedDate, onDayClick, form, setForm }) => {
-	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-	const days = returnDates(selectedDate, 'month');
-	const month = selectedDate.toLocaleString('default', { month: 'long' });
-	const year = selectedDate.getFullYear();
-	const weeksToRender = days.slice(35).some(date => date.getMonth() === selectedDate.getMonth()) ? 6 : 5;
+export const DayView = ({
+	selectedDate, // Date which range is based on
+	days,
+	onDayClick, // Could change span or just selected date, always changes range and causes update
+	leftExpanded, // For formatting
+}) => {
 
-	return (
-		<>
-			<div className="navigationBar">
-				<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { months: -1 }), 'month')}>❮❮❮</button>
-				<button className="navButton" onClick={() => onDayClick(selectedDate, 'year')}>{year}</button>
-				<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { months: 1 }), 'month')}>❯❯❯</button>
-			</div>
-			<div className="monthView">
-				<div className="weekdayTitle">{month}</div>
-				<div className="weekdayRow">
-					{weekdays.map((day, idx) => (
-						<div key={idx} className="weekdayTitle">{day}</div>
-					))}
-				</div>
-				{Array.from({ length: weeksToRender }).map((_, weekIdx) => (
-					<div key={weekIdx} className="monthRow">
-						{days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((date, idx) => (
-							<div key={idx} className="gridDayCell">
-								<div className="gridDayTitle" onClick={() => onDayClick(date, 'day')}>{date.getDate()}</div>
-								<div className="gridDayContent"></div>
-							</div>
-						))}
-					</div>
-				))}
-			</div>
-		</>
-	);
-};
-
-export const DayView = ({ 
-		selectedDate, // Date which range is based on
-		days, 
-		onDayClick, // Could change span or just selected date, always changes range and causes update
-		leftExpanded, // For formatting
-	}) => {
-	
 	// --- SCREEN SIZE HANDLERS -------------------------------------------------------
-	const { smallScreen = false } = useScreen() || {};
+	const smallScreen = useSmallScreen() || false;
 	// Switch days via swipe
 	useSwipe({
 		onSwipeLeft: smallScreen && !leftExpanded ? () => onDayClick(addTime(selectedDate, { days: 1 }), 'day') : null,
@@ -126,7 +66,7 @@ export const DayView = ({
 
 	// Styling constants
 	const eventDisplayPad = 8;
-	const uniqueLeadingDirs = [ ...new Set(forms.map(f => f.path.split('/')[0])) ];
+	const uniqueLeadingDirs = [...new Set(forms.map(f => f.path.split('/')[0]))];
 	const colorScheme = Object.fromEntries(
 		uniqueLeadingDirs.map((lDir, idx) => {
 			const color = colors[idx % (colors.length)];
@@ -152,9 +92,9 @@ export const DayView = ({
 		// Skip if ordering will fail
 		let skip = false;
 		const necessaryKeys = [
-			['startStamp', Date], 
-			['endStamp', Date], 
-			['path', 'string'], 
+			['startStamp', Date],
+			['endStamp', Date],
+			['path', 'string'],
 			['_id', 'string'],
 		];
 
@@ -186,10 +126,10 @@ export const DayView = ({
 
 	/**
 	 * Filter out potential overlaps that do not end after item starts, and finds smallest open slot
- 	 * @param {Array<{ endStamp: Date, slot: number }>} pOvers
- 	 * @param {{ startStamp: Date }} item
- 	 * @returns {{ slot: number, pOvers: Array<{ endStamp: Date, slot: number }>}}
- 	 */
+		 * @param {Array<{ endStamp: Date, slot: number }>} pOvers
+		 * @param {{ startStamp: Date }} item
+		 * @returns {{ slot: number, pOvers: Array<{ endStamp: Date, slot: number }>}}
+		 */
 	const slotEvents = (pOvers, item) => {
 
 		// Filter out potentialOverlaps that end at or before current item starts
@@ -218,7 +158,7 @@ export const DayView = ({
 		));
 
 		// Get all events that overlap the current date
-		const daysEvents = [ ...events, ...activeRecurs ].filter(item =>
+		const daysEvents = [...events, ...activeRecurs].filter(item =>
 			(timeDiff(normDate(item.startStamp), date).days === 0)
 			|| (item.startStamp < date && item.endStamp > date)
 		).sort((a, b) => sortEvents(a, b));
@@ -236,7 +176,7 @@ export const DayView = ({
 							<div className="dayCellLarge">
 								<div className="dayContentLarge" id="dayContentLarge_target">
 									<div className='hourSpan' id="hourSpanLarge_target">
-										<div className="hourLine"/>
+										<div className="hourLine" />
 										<div id="time_target">00:00</div>
 									</div>
 								</div>
@@ -253,7 +193,7 @@ export const DayView = ({
 					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
 						<div className="dayView">
 							<div className="dayCellSmall" />
-							<div className="dayCellSmall"> 
+							<div className="dayCellSmall">
 								<div className="dayContentSmall" id="dayContentSmall_target">
 									<div className='hourSpan' id="hourSpanSmall_target">
 										<div className="hourLine" />
@@ -284,7 +224,7 @@ export const DayView = ({
 		}
 		const hourHeight = Math.ceil(dayContentSnapshot?.hourSpanLarge?.height + dayContentSnapshot?.hourSpanLarge?.paddingTop + dayContentSnapshot?.hourSpanLarge?.paddingBottom);
 		const timeWidth = Math.ceil(dayContentSnapshot?.time?.width + dayContentSnapshot?.time?.paddingLeft + dayContentSnapshot?.time?.paddingRight);
-		
+
 		const eventStyle = getDummyWithChildrenStyle(
 			<div className="eventRow formRow" id="eventRow_target">
 				<button className="relButton">
@@ -304,11 +244,11 @@ export const DayView = ({
 		// Add each event's sort-relevant properties to its respective hour
 		for (const e of startInDayEvents) {
 			const hour = e.startStamp.getHours();
-			hourMembers[hour].push({ 
-				startStamp: e.startStamp, 
-				endStamp: e.endStamp, 
-				path: e.path, 
-				_id: e._id 
+			hourMembers[hour].push({
+				startStamp: e.startStamp,
+				endStamp: e.endStamp,
+				path: e.path,
+				_id: e._id
 			});
 		}
 
@@ -337,7 +277,7 @@ export const DayView = ({
 
 			// Recurs and pending events on right, rest on left
 			const onRight = item?.isRecur || item.complete === 'pending';
-			
+
 			// #region VERTICAL PROPS
 			// #region TOP PROPS
 			// Get all members that start within the same hour as the current item (use overlaps if starts before date)
@@ -406,9 +346,9 @@ export const DayView = ({
 		<React.Fragment>
 			{/** Calendar Navigation */}
 			<div className="navigationBar">
-				{!smallScreen && <FiChevronsLeft className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')}/>}
+				{!smallScreen && <FiChevronsLeft className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: -3 }), 'day')} />}
 				<button className="navButton" onClick={() => onDayClick(selectedDate, 'month')}>{month}</button>
-				{!smallScreen && <FiChevronsRight className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')}/>}
+				{!smallScreen && <FiChevronsRight className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { days: 3 }), 'day')} />}
 			</div>
 			<div className="dayView">
 				{days.map((date, idx) => {
@@ -419,7 +359,7 @@ export const DayView = ({
 							<div
 								className={isLarge ? 'dayTitleLarge' : 'dayTitleSmall'}
 								onClick={() => timeDiff(selectedDate, date).days !== 0 && onDayClick(date, 'day')}
-								>
+							>
 								<span>{weekdayAndDOTM(date)}</span>
 								<FiPlus className="relButton" onClick={() => {
 									initEmptyComposite(date, reduceComposite);
@@ -429,8 +369,8 @@ export const DayView = ({
 							<div className={isLarge ? 'dayContentLarge' : 'dayContentSmall'}>
 								{hourFormatting.map((fmt, hr) =>
 									<div key={hr} className='hourSpan' style={fmt}>
-										<div className='hourLine'/>
-										<div>{String(hr % 24).padStart(2,'0')}:00</div>
+										<div className='hourLine' />
+										<div>{String(hr % 24).padStart(2, '0')}:00</div>
 									</div>
 								)}
 								{daysEvents.map((item, jdx) => {
@@ -457,7 +397,7 @@ export const DayView = ({
 														}
 														setShowForm(true);
 													}}
-													>
+												>
 													{item.path.split('/')[item.path.split('/').length - 1]}
 												</button>
 												{!onRight && (
@@ -478,7 +418,7 @@ export const DayView = ({
 						<CompositeForm
 							allForms={forms}
 							allSchedules={schedules}
-							composite={composite} 
+							composite={composite}
 							reduceComposite={reduceComposite}
 							setShowForm={setShowForm}
 							upsertComposite={upsertComposite}
@@ -487,6 +427,65 @@ export const DayView = ({
 				}
 			</div>
 		</React.Fragment>
+	);
+};
+
+export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
+	const months = returnDates(selectedDate, 'year');
+	const year = selectedDate.getFullYear();
+
+	return (
+		<>
+			<div className="navigationBar">
+				<button className="arrowButton" onClick={() => onMonthClick(addTime(selectedDate, { years: -1 }), 'year')}>❮❮❮</button>
+				<button className="navButton">{year}</button>
+				<button className="arrowButton" onClick={() => onMonthClick(addTime(selectedDate, { years: 1 }), 'year')}>❯❯❯</button>
+			</div>
+			<div className="yearView">
+				{months.map((date, idx) => (
+					<div key={idx} className="monthCell">
+						<div className="monthTitle" onClick={() => onMonthClick(date, 'month')}>{date.toLocaleString('default', { month: 'long' })}</div>
+						<div className="monthContent"></div>
+					</div>
+				))}
+			</div>
+		</>
+	);
+};
+
+export const MonthView = ({ selectedDate, onDayClick, form, setForm }) => {
+	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	const days = returnDates(selectedDate, 'month');
+	const month = selectedDate.toLocaleString('default', { month: 'long' });
+	const year = selectedDate.getFullYear();
+	const weeksToRender = days.slice(35).some(date => date.getMonth() === selectedDate.getMonth()) ? 6 : 5;
+
+	return (
+		<>
+			<div className="navigationBar">
+				<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { months: -1 }), 'month')}>❮❮❮</button>
+				<button className="navButton" onClick={() => onDayClick(selectedDate, 'year')}>{year}</button>
+				<button className="arrowButton" onClick={() => onDayClick(addTime(selectedDate, { months: 1 }), 'month')}>❯❯❯</button>
+			</div>
+			<div className="monthView">
+				<div className="weekdayTitle">{month}</div>
+				<div className="weekdayRow">
+					{weekdays.map((day, idx) => (
+						<div key={idx} className="weekdayTitle">{day}</div>
+					))}
+				</div>
+				{Array.from({ length: weeksToRender }).map((_, weekIdx) => (
+					<div key={weekIdx} className="monthRow">
+						{days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((date, idx) => (
+							<div key={idx} className="gridDayCell">
+								<div className="gridDayTitle" onClick={() => onDayClick(date, 'day')}>{date.getDate()}</div>
+								<div className="gridDayContent"></div>
+							</div>
+						))}
+					</div>
+				))}
+			</div>
+		</>
 	);
 };
 

@@ -1,4 +1,67 @@
-import { useEffect } from 'react';
+// helpers/DynamicView.js
+
+import { useState, useEffect } from 'react';
+
+/**
+ * 
+ * @param {number} thresh - Threshold to decide 'smallScreen' bool
+ * @param {number} threshPad - Pad to prevent 'thrashing'
+ * @returns { smallScreen: boolean }
+ */
+export const useSmallScreen = (thresh = 600, threshPad = 25) => {
+	const init = window.innerWidth <= thresh;
+	const [smallScreen, setSmallScreen] = useState(init);
+
+	const onResize = () => {
+		const w = window.innerWidth;
+		setSmallScreen(prev =>
+			(!prev && w <= (thresh - threshPad)) ? true :
+			(prev && w >= (thresh + threshPad)) ? false :
+			prev
+		);
+	};
+
+	useEffect(() => {
+		window.addEventListener('resize', onResize);
+		window.addEventListener('orientationchange', onResize);
+
+		return () => {
+			window.removeEventListener('resize', onResize);
+			window.removeEventListener('orientationchange', onResize);
+		}
+	}, [thresh, threshPad]);
+
+	return smallScreen;
+}
+
+/**
+ * Get screen dimensions
+ * @returns { screenDims: Object<{ w: number, h: number }> }
+ */
+export const useWindowSize = () => {
+	const [screenDims, setScreenDims] = useState({ w: window.innerWidth, h: window.innerHeight });
+
+	useEffect(() => {
+		let rAF = 0;
+
+		const onResize = () => {
+			cancelAnimationFrame(rAF);
+			rAF = requestAnimationFrame(() => setScreenDims({ w: window.innerWidth, h: window.innerHeight }));
+		};
+
+		window.addEventListener('resize', onResize);
+		window.addEventListener('orientationchange', onResize);
+
+		return () => {
+			cancelAnimationFrame(rAF);
+			window.removeEventListener('resize', onResize);
+			window.removeEventListener('orientationchange', onResize);
+		};
+	}, []);
+
+	return screenDims;
+};
+
 
 /** Swipe listeners, pass in functions to run onSwipe{direction} */
 export const useSwipe = ({ onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown }) => {

@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
-import { useKeyNav } from '../contexts/KeyNavContext';
-import { useScreen } from '../contexts/ScreenContext';
+import { useKeyNav } from '../helpers/KeyNav';
+import { useSmallScreen } from '../helpers/DynamicView';
 import { measureTextWidth } from '../helpers/Measure';
 import { clamp } from '../helpers/Misc';
 import { ErrorInfoButton } from './Notifications';
@@ -19,7 +19,7 @@ const useDropCore = ({
 	paddedOptions = null
 }) => {
 
-	const { smallScreen = false } = useScreen() || {};
+	const smallScreen = useSmallScreen() || false;
 	const { currentNav } = useKeyNav() || {};
 
 	// Initialize refs as null
@@ -342,7 +342,7 @@ const DropView = ({
 	min = Number.NEGATIVE_INFINITY,
 	max = Number.POSITIVE_INFINITY
 }) => {
-	const { smallScreen = false } = useScreen() || {};
+	const smallScreen = useSmallScreen() || false;
 
 	const handleArrow = useCallback((e) => {
 		if (!isOpen || !listRef?.current || e.ctrlKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) { return }
