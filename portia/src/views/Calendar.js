@@ -358,7 +358,9 @@ export const DayView = ({
 										<React.Fragment key={item._id}>
 											<span className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} />
 											<div className={`${baseClass}Row formRow`} style={formatting[jdx].row}>
-												{onRight && <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p> }
+												{onRight && (
+													<p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p>
+												)}
 												<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
 													onClick={() => {
 														if (item.isRecur) {
@@ -371,7 +373,11 @@ export const DayView = ({
 													>
 													{item.path.split('/')[item.path.split('/').length - 1]}
 												</button>
-												{!onRight && <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p> }
+												{!onRight && (
+													item?.complete === 'skipped' ?
+														<p className="sep">Skipped</p>
+														: <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p>
+												)}
 											</div>
 										</React.Fragment>
 									);

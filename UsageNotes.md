@@ -13,6 +13,7 @@
 - Add deletes (utilize filesystem for large deletes and composite menu for small deletes)
 - Add filesystem
 - Add other views
+- ID fields so I don't have to filter by a changeable label (for analysis)
 ## Streamlining
 - Clean up css
 - Clean up js

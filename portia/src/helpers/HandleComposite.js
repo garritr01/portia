@@ -156,6 +156,13 @@ export const updateComposite = (state, action) => {
 							[key]: action?.dirty === false ? false : true
 						}
 					},
+					toDelete: {
+						...state.toDelete,
+						schedules: {
+							...state.toDelete.schedules,
+							[key]: state.toDelete.schedules?.[key] === undefined ? false : state.toDelete.schedules?.[key]
+						}
+					}
 				};
 
 			}

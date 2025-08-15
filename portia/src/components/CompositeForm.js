@@ -641,13 +641,13 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	}); // Hold synchronization flags for timeStamps
 
 	//useEffect(() => console.log("form:\n", form), [form]);
-	useEffect(() => console.log("event:\n", event), [event]);
+	//useEffect(() => console.log("event:\n", event), [event]);
 	//useEffect(() => console.log("editSchedule:\n", editSchedule), [editSchedule]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
-	//useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
-	useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
+	useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
+	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Holds last state for easy reversion
 	const ogState = useRef({
