@@ -20,6 +20,7 @@ import {
 	createCompositeFromEvent,
 } from '../helpers/HandleComposite';
 import { assignKeys } from '../helpers/Misc';
+import { typeCheck } from '../helpers/InputValidation';
 import { useSwipe } from '../helpers/DynamicView';
 import { getDummyStyle, getDummyWithChildrenStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
@@ -37,6 +38,10 @@ const colors = [
 	"#c5108f",
 	"#000000",
 ];
+
+const useCalendarMeasurements = ({ smallScreen, leftExpanded }) => {
+
+}
 
 export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
 	const months = returnDates(selectedDate, 'year');
@@ -120,7 +125,7 @@ export const DayView = ({
 	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], reduceComposite);
 
 	// Styling constants
-	const eventDisplayPad = 4;
+	const eventDisplayPad = 8;
 	const uniqueLeadingDirs = [ ...new Set(forms.map(f => f.path.split('/')[0])) ];
 	const colorScheme = Object.fromEntries(
 		uniqueLeadingDirs.map((lDir, idx) => {
@@ -132,6 +137,78 @@ export const DayView = ({
 	// --- DATE HANDLERS -------------------------------------------------------
 	const month = selectedDate.toLocaleString('default', { month: 'long' });
 
+	/**
+	 * For use within sorter to sort events containing (by priority)
+	 * - 'startStamp' - chronologically earlier first
+	 * - 'endStamp' - chronologically earlier first
+	 * - 'path' - alphabetically earlier first
+	 * - '_id' - alphabetically earlier first
+	 * @param {*} a
+	 * @param {*} b 
+	 * @returns {{ sorter:number }}
+	 */
+	const sortEvents = (a, b) => {
+
+		// Skip if ordering will fail
+		let skip = false;
+		const necessaryKeys = [
+			['startStamp', Date], 
+			['endStamp', Date], 
+			['path', 'string'], 
+			['_id', 'string'],
+		];
+
+		for (const [k, t] of necessaryKeys) {
+			if (!(k in a)) { skip = true; console.warn(`${k} missing for sorter in:\n`, a); }
+			else if (!typeCheck(a[k], t)) { skip = true; console.warn(`${k} has invalid type in:\n`, a); }
+			if (!(k in b)) { skip = true; console.warn(`${k} missing for sorter in:\n`, b); }
+			else if (!typeCheck(b[k], t)) { skip = true; console.warn(`${k} has invalid type in:\n`, b); }
+		} if (skip) {
+			console.warn("Skipping logical ordering");
+			return 0;
+		}
+
+		// Sort chronologically by startStamp (earlier first) unless 0
+		const startsBefore = a.startStamp - b.startStamp;
+		if (startsBefore) { return startsBefore }
+
+		// Sort chronologically by endStamp (later first) unless 0
+		const endsBefore = a.endStamp - b.endStamp;
+		if (endsBefore) { return endsBefore }
+
+		// Sort alphabetically by path (earlier first) unless same
+		const pathAlphaBefore = a.path.localeCompare(b.path);
+		if (pathAlphaBefore) { return pathAlphaBefore }
+
+		// Sort alphabetically by _id (earlier first) always different
+		return a._id.localeCompare(b._id);
+	}
+
+	/**
+	 * Filter out potential overlaps that do not end after item starts, and finds smallest open slot
+ 	 * @param {Array<{ endStamp: Date, slot: number }>} pOvers
+ 	 * @param {{ startStamp: Date }} item
+ 	 * @returns {{ slot: number, pOvers: Array<{ endStamp: Date, slot: number }>}}
+ 	 */
+	const slotEvents = (pOvers, item) => {
+
+		// Filter out potentialOverlaps that end at or before current item starts
+		pOvers = pOvers.filter(p => p.endStamp > item.startStamp);
+
+		// Find smallest slot that is not occupied
+		const occupied = new Set(pOvers.map(o => o.slot));
+		let slot = 1;
+		while (occupied.has(slot)) { slot += 1 }
+
+		// Add item (with slot) to potential overlaps
+		pOvers.push({
+			endStamp: item.endStamp,
+			slot,
+		})
+
+		return { slot, pOvers };
+	}
+
 	// Format events for display in dayCell
 	const formatEvents = (date, isLarge) => {
 		// Filter out resolved schedules
@@ -139,20 +216,15 @@ export const DayView = ({
 			e.scheduleID === r.scheduleID
 			&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
 		));
+
+		// Get all events that overlap the current date
 		const daysEvents = [ ...events, ...activeRecurs ].filter(item =>
 			(timeDiff(normDate(item.startStamp), date).days === 0)
 			|| (item.startStamp < date && item.endStamp > date)
-		).sort((a, b) => {
-			const sDiff = a.startStamp - b.startStamp; // First order by start
-			if (sDiff !== 0) { return sDiff }
-			const eDiff = a.endStamp - b.endStamp; // Second order by end
-			if (eDiff !== 0) { return eDiff }
-			const pDiff = a.path.localeCompare(b.path); // Third order by path
-			if (pDiff !== 0) { return pDiff }
-			return a._id.localeCompare(b._id); // Last (Guaranteed different) order by ids
-		});
+		).sort((a, b) => sortEvents(a, b));
 		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ start: e.startStamp, end: e.endStamp, path: e.path, _id: e._id }));
 
+		// #region MEASURE DUMMIES
 		// Get properties of relevant dummy elements for calculating absolute styles
 		let dayContentSnapshot;
 		let hourSpanWidth;
@@ -212,6 +284,7 @@ export const DayView = ({
 		}
 		const hourHeight = Math.ceil(dayContentSnapshot?.hourSpanLarge?.height + dayContentSnapshot?.hourSpanLarge?.paddingTop + dayContentSnapshot?.hourSpanLarge?.paddingBottom);
 		const timeWidth = Math.ceil(dayContentSnapshot?.time?.width + dayContentSnapshot?.time?.paddingLeft + dayContentSnapshot?.time?.paddingRight);
+		
 		const eventStyle = getDummyWithChildrenStyle(
 			<div className="eventRow formRow" id="eventRow_target">
 				<button className="relButton">
@@ -221,98 +294,112 @@ export const DayView = ({
 			['height']
 		);
 		const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
+		// #endregion
 
-		// Accumulate the number of events in each hour
+		// #region HOUR FORMATTING
+
+		// Accumulate members of each hour (used for ordering)
 		const hourMembers = Array.from({ length: 24 }, () => []);
-		for (const e of daysEvents.filter(e => !(new Date(e.startStamp) < date))) {
-			const start = new Date(e.startStamp);
-			const hour = start.getHours();
-			hourMembers[hour].push({ start, end: e.endStamp, path: e.path, _id: e._id });
+		const startInDayEvents = daysEvents.filter(e => e.startStamp >= date); // Exclude items that start before date
+		// Add each event's sort-relevant properties to its respective hour
+		for (const e of startInDayEvents) {
+			const hour = e.startStamp.getHours();
+			hourMembers[hour].push({ 
+				startStamp: e.startStamp, 
+				endStamp: e.endStamp, 
+				path: e.path, 
+				_id: e._id 
+			});
 		}
 
-		// Accumulate necessary formatting info for each hour label
+		// Accumulate necessary formatting info for each hour label (top, height)
 		let prevMemberHeight = overlapEvents.length * titleHeight;
 		const hourFormatting = [{ top: prevMemberHeight }];
 		for (let hr = 0; hr < 24; hr++) {
-			const prevHrHeight = (hr + 1) * hourHeight;
-			const numMem = hourMembers[hr].length;
-			prevMemberHeight += numMem > 0 ? numMem * titleHeight - hourHeight : 0;
-			hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight });
+			const prevHrHeight = (hr + 1) * hourHeight; // Increment by 1 to account for 00:00
+			const numMem = hourMembers[hr].length; // Get number of hourMembers within each hour
+			prevMemberHeight += numMem > 0 ? numMem * titleHeight - hourHeight : 0; // Accumulate height of members preceding each hour
+			hourFormatting.push({ top: prevHrHeight + prevMemberHeight, height: hourHeight }); // Define properties by hour
 		}
+		// #endregion
 
-		// Accumulate the necessary formatting info for each event/recur
+		// #region EVENT FORMATTING
+		// Accumulate the necessary formatting info for each event/recurin a parallel array
 		const formatting = [];
-		let potLeftOverlaps = [];
-		let potRightOverlaps = [];
+		let potentialOverlaps = { left: [], right: [] };
 		for (const item of daysEvents) {
 			const start = item.startStamp;
 			const end = item.endStamp;
 
+			// Bools for whether even extends beyond date
+			const startsBefore = start < date;
+			const continuesAfter = end > addTime(date, { days: 1 });
+
+			// Recurs and pending events on right, rest on left
 			const onRight = item?.isRecur || item.complete === 'pending';
-			const startsBefore = item.startStamp < date;
-			const continuesAfter = item.endStamp > addTime(date, { days: 1 });
-
-			let indents;
-			if (onRight) {
-				potRightOverlaps = potRightOverlaps.filter((potR) => potR.startStamp < item.startStamp && potR.endStamp > item.startStamp && potR.endStamp.getMinutes() !== item.startStamp.getMinutes()); // If starts before and ends during/after
-				potRightOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
-				indents = potRightOverlaps.length;
-			} else {
-				potLeftOverlaps = potLeftOverlaps.filter((potL) => potL.startStamp < item.startStamp && potL.endStamp > item.startStamp && potL.endStamp.getMinutes() !== item.startStamp.getMinutes()); // If starts before and ends during/after
-				potLeftOverlaps.push({ startStamp: item.startStamp, endStamp: item.endStamp });
-				indents = potLeftOverlaps.length;
-			}
-
+			
+			// #region VERTICAL PROPS
+			// #region TOP PROPS
+			// Get all members that start within the same hour as the current item (use overlaps if starts before date)
 			const topMembers = startsBefore ? overlapEvents : hourMembers[start.getHours()];
-			const topMemberSkips = topMembers.filter(mem => {
-				if (mem.start < start) { return true }
-				if (mem.start.getTime() === start.getTime()) {
-					if (mem.end < end) { return true }
-					else if (mem.end.getTime() === end.getTime()) {
-						if (mem.path.localeCompare(item.path) < 0) { return true }
-						else if (mem.path === item.path) {
-							if (mem._id.localeCompare(item._id) < 0) { return true }
-						}
-					}
-				}
-				return false;
-			}).length;
-
-			// Top/Bottom Properties
+			// Accumulate count of hour members that are ordered to be before current item
+			const topMemberSkips = topMembers.reduce((acc, mem) => acc + (sortEvents(mem, item) < 0 ? 1 : 0), 0);
+			// Get current hour top property for basing formatting (0 if before day starts, otherwise use middle of hour)
 			const hourTop = startsBefore ? 0 : hourFormatting[start.getHours()].top + hourHeight / 2;
-			const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight
+			// Calculate height of hour w/ all included events
+			const topHourHeight = topMembers.length > 0 ? titleHeight * topMembers.length : hourHeight;
+			// Calculate location of top of line
 			const lineTop = startsBefore ? hourTop : hourTop + (start.getMinutes() / 60) * topHourHeight;
+			// Calculate location of button
 			const rowTop = hourTop + topMemberSkips * titleHeight;
+			// #endregion
 
+			// #region BOTTOM PROPS
+			// Get all members that start within the same hour as the current item ENDS (use 23:00 if ends later than date)
 			const bottomMembers = continuesAfter ? hourMembers[23] : hourMembers[end.getHours()];
+			// Get current hour top property for basing formatting (24:00 + hourHeight if after day ends, otherwise use middle of hour)
 			const hourBottom = continuesAfter ? hourFormatting[24].top + hourHeight : hourFormatting[end.getHours()].top + hourHeight / 2;
+			// Calculate height of hour w/ all included events
 			const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
+			// Calculate location of bottom of line
 			const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
+			// #endregion
+			// #endregion
 
-			// L/R properties
+			// #region HORIZONTAL PROPERTIES
+			// Find the smallest indent where the current item will not overlap and remove any future impossible overlaps
+			const sideKey = onRight ? 'right' : 'left';
+			const { slot: indents, pOvers } = slotEvents(potentialOverlaps[sideKey], item);
+			potentialOverlaps[sideKey] = pOvers;
+
+			// Calculate translations to account for indents
 			const translateLine = onRight ? -(eventDisplayPad * indents + timeWidth) : eventDisplayPad * indents;
-			const translateRow = onRight ? translateLine - 2 * eventDisplayPad : translateLine + 2 * eventDisplayPad;
+			const translateRow = onRight ? translateLine - eventDisplayPad : translateLine + eventDisplayPad;
 			const rowWidth = onRight ? translateRow - hourSpanWidth : hourSpanWidth - translateRow;
+			// #endregion
 
+			// Define line properties
 			const line = {
 				top: lineTop + 'px',
 				height: `${lineBottom - lineTop}px`,
 				transform: 'translateX(' + translateLine + 'px)'
 			}
+			// Align to right if onRight
 			if (onRight) {
 				line.right = '0';
 			}
+			// Define row properties
 			const row = {
 				top: rowTop + 'px',
 				transform: 'translateX(' + translateRow + 'px)',
 				width: rowWidth + 'px'
 			}
 
-			//console.log('line', line);
 			formatting.push({ row, line });
 		}
+		// #endregion
 
-		return { daysEvents, formatting, colorScheme, hourFormatting }
+		return { daysEvents, formatting, hourFormatting };
 	}
 
 	return (
@@ -326,7 +413,7 @@ export const DayView = ({
 			<div className="dayView">
 				{days.map((date, idx) => {
 					const isLarge = smallScreen ? true : (idx === 2);
-					const { daysEvents, formatting, colorScheme, hourFormatting } = formatEvents(date, isLarge);
+					const { daysEvents, formatting, hourFormatting } = formatEvents(date, isLarge);
 					return (
 						<div key={date.getTime()} id={date.toISOString()} className={isLarge ? 'dayCellLarge' : 'dayCellSmall'}>
 							<div

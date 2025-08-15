@@ -70,6 +70,19 @@ const falseToTest = (value, placeholder) => {
 	return { valid: false, err: 'Test error'};
 }
 
+/**
+ * Check that the value is the accepted type. 
+ * 	Specified for: string, number, Date
+ * @param {*} value 
+ * @param {*} valueType 
+ * @returns 
+ */
+export const typeCheck = (value, valueType) => 
+	valueType === 'string' ? (typeof value === 'string') :
+	valueType === 'number' ? (typeof value === 'number') :
+	valueType === Date ? (value instanceof Date) :
+	(value instanceof valueType);
+
 // Recursively check type validity of objects before storage
 // Objects check nested values based on keys 
 // Arrays check each value for specified check
