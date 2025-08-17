@@ -627,6 +627,16 @@ body,
 	border-top: 1px solid var(--border2);
 }
 
+.recurRow, 
+.eventRow {
+	box-sizing: border-box;
+	position: absolute;
+	align-items: flex-start;
+	white-space: nowrap;
+	flex-grow: 1;
+	gap: 0.25rem;
+}
+
 .eventSpan {
 	position: absolute;
 	flex-grow: 1;
@@ -639,14 +649,9 @@ body,
 	border-right: 2px solid var(--line-color, var(--border2));
 }
 
-.recurRow, 
-.eventRow {
-	box-sizing: border-box;
-	position: absolute;
-	align-items: flex-start;
-	white-space: nowrap;
-	flex-grow: 1;
-	gap: 0.25rem;
+.eventSpan:hover,
+.recurSpan:hover {
+	border-width: 4px;
 }
 
 .eventSpan::before,

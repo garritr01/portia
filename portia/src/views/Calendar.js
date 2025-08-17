@@ -470,23 +470,26 @@ export const DayView = ({
 										item.startStamp < date && 'noBefore',
 										item.endStamp >= addTime(date, { days: 1 }) && 'noAfter',
 									].filter(Boolean).join(' ');
+
+									const clickHandler = (item) => {
+										if (item.isRecur) {
+											createCompositeFromRecur(item, forms, schedules, reduceComposite);
+										} else {
+											createCompositeFromEvent(item, forms, schedules, reduceComposite);
+										}
+										setShowForm(true);
+									}
 									return (
 										<React.Fragment key={item._id}>
-											<span className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} />
+											<span className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} onClick={() => clickHandler(item)}/>
 											<div className={`${baseClass}Row formRow`} style={formatting[jdx].row}>
 												{onRight && (
 													<p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p>
 												)}
-												<button className="relButton" style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
-													onClick={() => {
-														if (item.isRecur) {
-															createCompositeFromRecur(item, forms, schedules, reduceComposite);
-														} else {
-															createCompositeFromEvent(item, forms, schedules, reduceComposite);
-														}
-														setShowForm(true);
-													}}
-												>
+												<button className="relButton" 
+													style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
+													onClick={() => clickHandler(item)}
+													>
 													{item.path.split('/')[item.path.split('/').length - 1]}
 												</button>
 												{!onRight && (
