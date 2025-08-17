@@ -960,7 +960,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 	};
 
 	return (
-		<div className="navBlock wButtonRow">
+		<div id="compositeNavBasis" className="navBlock wButtonRow">
 
 			{/** PATH */}
 			<div className="navRow">

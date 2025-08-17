@@ -1,6 +1,6 @@
 // views/Calendar.js
 
-import React, { useState, useEffect, useMemo, useReducer } from 'react';
+import React, { useState, useMemo, useEffect, useReducer } from 'react';
 import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
 import {
 	returnDates,
@@ -38,8 +38,154 @@ const colors = [
 	"#000000",
 ];
 
-const useCalendarMeasurements = ({ smallScreen, leftExpanded }) => {
+const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 
+	if (span === 'day') {
+
+		if (smallScreen) {
+
+			return (
+				<div className="container">
+					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
+						<div className="dayView">
+							<div className="dayCellLarge">
+								<div className="dayContentLarge" id="dayContentLarge_target">
+									<div className='hourSpan' id="hourSpanLarge_target">
+
+										<div className="hourLine" />
+										<div id="time_target">00:00</div>
+										<div className="eventRow formRow" id="eventRow_target">
+											<button className="relButton">
+												Sometext
+											</button>
+										</div>
+
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			);
+
+		} else {
+
+			return (
+				<div className="container">
+					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
+						<div className="dayView">
+
+							<div className="dayCellSmall" />
+
+							<div className="dayCellSmall">
+								<div className="dayContentSmall" id="dayContentSmall_target">
+									<div className='hourSpan' id="hourSpanSmall_target">
+										
+										<div className="hourLine" />
+										<div>00:00</div>
+
+									</div>
+								</div>
+							</div>
+
+							<div className="dayCellLarge">
+								<div className="dayContentLarge" id="dayContentLarge_target">
+									<div className='hourSpan' id="hourSpanLarge_target">
+
+										<div className="hourLine" />
+										<div id="time_target">00:00</div>
+										<div className="eventRow formRow" id="eventRow_target">
+											<button className="relButton">
+												Sometext
+											</button>
+										</div>
+
+									</div>
+								</div>
+							</div>
+
+							<div className="dayCellSmall" />
+							<div className="dayCellSmall" />
+
+						</div>
+					</div>
+				</div>
+			);
+
+		}
+	} else if (span === 'month'){
+
+		if (smallScreen) {
+			
+			return null;
+
+		} else {
+			
+			return null;
+
+		}
+
+	} else if (span === 'year'){
+
+		if (smallScreen) {
+			
+			return null;
+
+		} else {
+			
+			return null;
+
+		}
+
+	} else {
+		console.warn("Invalid span in DayDummy");
+		return null;
+	}
+
+};
+
+const heightProps = ['height', 'padding-top', 'padding-bottom'];
+const widthProps = ['width', 'padding-left', 'padding-right'];
+
+const useCalendarMeasurements = ({ span, smallScreen, leftExpanded }) => {
+
+	const { w } = useWindowSize() || { w: 0 };
+	const [widths, setWidths] = useState({
+		largehourSpanWidth: 100,
+		smallhourSpanWidth: 50,
+		timeWidth: 25,
+	})
+	const [heights, setHeights] = useState({
+		hourHeight: 25,
+		titleHeight: 25,
+	})
+
+	const dayDummyHTML = useMemo(() => <DayDummy span={span} smallScreen={smallScreen} leftExpanded={leftExpanded} />, [span, smallScreen, leftExpanded]);
+
+	const updateWidths = (dummyContainer = null) => {
+		dummyContainer = dummyContainer ?? getDummyWithChildrenStyle(dayDummyHTML, widthProps);
+
+		setWidths({
+			largehourSpanWidth: Math.floor(dummyContainer?.hourSpanLarge?.width),
+			smallhourSpanWidth: Math.floor(dummyContainer?.hourSpanSmall?.width),
+			timeWidth: Math.ceil(dummyContainer?.time?.width),
+		});
+	};
+	
+	const updateAllMeasures = () => {
+		const dummyContainer = getDummyWithChildrenStyle(dayDummyHTML, [ ...heightProps, ...widthProps ]);
+		updateWidths(dummyContainer);
+
+		setHeights({
+			hourHeight: Math.ceil(dummyContainer?.hourSpanLarge?.height),
+			titleHeight: Math.ceil(dummyContainer?.eventRow?.height),
+		});
+	};
+
+	useEffect(() => updateAllMeasures(), []);
+	useEffect(() => updateWidths(), [w, span, smallScreen, leftExpanded]);
+
+	return { widths, heights };
 };
 
 export const DayView = ({
@@ -51,6 +197,8 @@ export const DayView = ({
 
 	// --- SCREEN SIZE HANDLERS -------------------------------------------------------
 	const smallScreen = useSmallScreen() || false;
+	const { widths, heights } = useCalendarMeasurements({ span: 'day', smallScreen, leftExpanded });
+	useEffect(() => console.log(widths, heights), [widths, heights]);
 	// Switch days via swipe
 	useSwipe({
 		onSwipeLeft: smallScreen && !leftExpanded ? () => onDayClick(addTime(selectedDate, { days: 1 }), 'day') : null,
@@ -162,79 +310,13 @@ export const DayView = ({
 			(timeDiff(normDate(item.startStamp), date).days === 0)
 			|| (item.startStamp < date && item.endStamp > date)
 		).sort((a, b) => sortEvents(a, b));
-		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ start: e.startStamp, end: e.endStamp, path: e.path, _id: e._id }));
+		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ startStamp: e.startStamp, endStamp: e.endStamp, path: e.path, _id: e._id }));
 
-		// #region MEASURE DUMMIES
-		// Get properties of relevant dummy elements for calculating absolute styles
-		let dayContentSnapshot;
-		let hourSpanWidth;
-		if (smallScreen) {
-			dayContentSnapshot = getDummyWithChildrenStyle(
-				<div className="container">
-					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
-						<div className="dayView">
-							<div className="dayCellLarge">
-								<div className="dayContentLarge" id="dayContentLarge_target">
-									<div className='hourSpan' id="hourSpanLarge_target">
-										<div className="hourLine" />
-										<div id="time_target">00:00</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>,
-				['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
-			);
-			hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanLarge?.width + dayContentSnapshot?.hourSpanLarge?.paddingLeft);
-		} else {
-			dayContentSnapshot = getDummyWithChildrenStyle(
-				<div className="container">
-					<div className={`calendar ${!leftExpanded ? 'expand' : ''}`}>
-						<div className="dayView">
-							<div className="dayCellSmall" />
-							<div className="dayCellSmall">
-								<div className="dayContentSmall" id="dayContentSmall_target">
-									<div className='hourSpan' id="hourSpanSmall_target">
-										<div className="hourLine" />
-										<div>00:00</div>
-									</div>
-								</div>
-							</div>
-							<div className="dayCellLarge">
-								<div className="dayContentLarge" id="dayContentLarge_target">
-									<div className='hourSpan' id="hourSpanLarge_target">
-										<div className="hourLine" />
-										<div id="time_target">00:00</div>
-									</div>
-								</div>
-							</div>
-							<div className="dayCellSmall" />
-							<div className="dayCellSmall" />
-						</div>
-					</div>
-				</div>,
-				['height', 'width', 'padding-top', 'padding-left', 'padding-right', 'padding-bottom']
-			);
-			if (isLarge) {
-				hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanLarge?.width + dayContentSnapshot?.hourSpanLarge?.paddingLeft);
-			} else {
-				hourSpanWidth = Math.floor(dayContentSnapshot?.hourSpanSmall?.width + dayContentSnapshot?.hourSpanSmall?.paddingLeft);
-			}
-		}
-		const hourHeight = Math.ceil(dayContentSnapshot?.hourSpanLarge?.height + dayContentSnapshot?.hourSpanLarge?.paddingTop + dayContentSnapshot?.hourSpanLarge?.paddingBottom);
-		const timeWidth = Math.ceil(dayContentSnapshot?.time?.width + dayContentSnapshot?.time?.paddingLeft + dayContentSnapshot?.time?.paddingRight);
-
-		const eventStyle = getDummyWithChildrenStyle(
-			<div className="eventRow formRow" id="eventRow_target">
-				<button className="relButton">
-					Sometext
-				</button>
-			</div>,
-			['height']
-		);
-		const titleHeight = Math.ceil(eventStyle?.eventRow?.height);
-		// #endregion
+		// Grab Dummy Measurements
+		const hourHeight = heights.hourHeight;
+		const titleHeight = heights.titleHeight;
+		const hourSpanWidth = isLarge ? widths?.largehourSpanWidth : widths?.smallhourSpanWidth;
+		const timeWidth = widths.timeWidth;
 
 		// #region HOUR FORMATTING
 
@@ -280,6 +362,7 @@ export const DayView = ({
 
 			// #region VERTICAL PROPS
 			// #region TOP PROPS
+
 			// Get all members that start within the same hour as the current item (use overlaps if starts before date)
 			const topMembers = startsBefore ? overlapEvents : hourMembers[start.getHours()];
 			// Accumulate count of hour members that are ordered to be before current item
@@ -292,9 +375,11 @@ export const DayView = ({
 			const lineTop = startsBefore ? hourTop : hourTop + (start.getMinutes() / 60) * topHourHeight;
 			// Calculate location of button
 			const rowTop = hourTop + topMemberSkips * titleHeight;
+
 			// #endregion
 
 			// #region BOTTOM PROPS
+
 			// Get all members that start within the same hour as the current item ENDS (use 23:00 if ends later than date)
 			const bottomMembers = continuesAfter ? hourMembers[23] : hourMembers[end.getHours()];
 			// Get current hour top property for basing formatting (24:00 + hourHeight if after day ends, otherwise use middle of hour)
@@ -303,6 +388,7 @@ export const DayView = ({
 			const bottomHourHeight = bottomMembers.length > 0 ? titleHeight * bottomMembers.length : hourHeight;
 			// Calculate location of bottom of line
 			const lineBottom = hourBottom + (end.getMinutes() / 60) * bottomHourHeight;
+
 			// #endregion
 			// #endregion
 
@@ -312,26 +398,29 @@ export const DayView = ({
 			const { slot: indents, pOvers } = slotEvents(potentialOverlaps[sideKey], item);
 			potentialOverlaps[sideKey] = pOvers;
 
-			// Calculate translations to account for indents
-			const translateLine = onRight ? -(eventDisplayPad * indents + timeWidth) : eventDisplayPad * indents;
-			const translateRow = onRight ? translateLine - eventDisplayPad : translateLine + eventDisplayPad;
-			const rowWidth = onRight ? translateRow - hourSpanWidth : hourSpanWidth - translateRow;
+			// Calculate translations and width to account for indents
+			const pad = eventDisplayPad;
+			const anchor = onRight ? { right: '0', left: 'auto' } : { left: '0', right: 'auto' };
+			const lineShift = pad * indents;
+			const rowShift = pad * (indents + 1);
+
+			const translateLine = onRight ? -(lineShift + timeWidth) : lineShift;
+			const translateRow = onRight ? -(rowShift + timeWidth) : rowShift;
+			const rowWidth = onRight ? hourSpanWidth - (rowShift + timeWidth) : hourSpanWidth - rowShift;
 			// #endregion
 
 			// Define line properties
 			const line = {
+				...anchor,
 				top: lineTop + 'px',
 				height: `${lineBottom - lineTop}px`,
-				transform: 'translateX(' + translateLine + 'px)'
-			}
-			// Align to right if onRight
-			if (onRight) {
-				line.right = '0';
+				transform: `translateX(${translateLine}px)`,
 			}
 			// Define row properties
 			const row = {
+				...anchor,
 				top: rowTop + 'px',
-				transform: 'translateX(' + translateRow + 'px)',
+				transform: `translateX(${translateRow}px)`,
 				width: rowWidth + 'px'
 			}
 

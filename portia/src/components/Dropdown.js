@@ -20,7 +20,8 @@ const useDropCore = ({
 }) => {
 
 	const smallScreen = useSmallScreen() || false;
-	const { currentNav } = useKeyNav() || {};
+	const navBasis = document.getElementById('compositeNavBasis');
+	const { currentNav } = useKeyNav(navBasis) || {};
 
 	// Initialize refs as null
 	const headRef = useRef(null);

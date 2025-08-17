@@ -1,3 +1,5 @@
+// helpers/InputValidation.js
+
 const infoAllowed = {
 	'mc': ['null', 'string'],
 	'tf': ['null', 'boolean'],

@@ -19,7 +19,7 @@ export const App = () => {
 	const smallScreen = useSmallScreen() || false;
 	// Determines share of screen
 	const [leftExpanded, setLeftExpanded] = useState(false);
-	// Minimize left menu when small screen
+	// Minimize left menu when small screen on swipe left
 	useSwipe({ onSwipeLeft: smallScreen && leftExpanded ? () => setLeftExpanded(false) : null });
 	
 	// --- DATE AND DEPENDENT HANDLERS ----------------------------------------------------------------

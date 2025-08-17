@@ -36,28 +36,31 @@ export const useSmallScreen = (thresh = 600, threshPad = 25) => {
 
 /**
  * Get screen dimensions
+ * @param {number} delay - Wait for screen to be stable for x ms before passing new dims
  * @returns { screenDims: Object<{ w: number, h: number }> }
  */
-export const useWindowSize = () => {
+export const useWindowSize = (delay = 200) => {
 	const [screenDims, setScreenDims] = useState({ w: window.innerWidth, h: window.innerHeight });
 
 	useEffect(() => {
-		let rAF = 0;
+		let timeout;
 
 		const onResize = () => {
-			cancelAnimationFrame(rAF);
-			rAF = requestAnimationFrame(() => setScreenDims({ w: window.innerWidth, h: window.innerHeight }));
+			clearTimeout(timeout);
+			timeout = setTimeout(() => {
+				setScreenDims({ w: window.innerWidth, h: window.innerHeight });
+			}, delay);
 		};
 
 		window.addEventListener('resize', onResize);
 		window.addEventListener('orientationchange', onResize);
 
 		return () => {
-			cancelAnimationFrame(rAF);
+			clearTimeout(timeout);
 			window.removeEventListener('resize', onResize);
 			window.removeEventListener('orientationchange', onResize);
 		};
-	}, []);
+	}, [delay]);
 
 	return screenDims;
 };
