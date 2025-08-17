@@ -304,6 +304,7 @@ export const viewFriendlyDateTime = (date, includeTZ = false) => {
 // For displaying range of time
 export const dateTimeRange = (start, end) => {
 	const startString = new Date(start).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
+	if (start.getTime() === end.getTime()) { return startString };
 	const endString = new Date(end).toLocaleString('default', { hour: "2-digit", minute: "2-digit", hour12: false });
 	return `${startString}-${endString}`;
 };

@@ -50,17 +50,18 @@ const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 						<div className="dayView">
 							<div className="dayCellLarge">
 								<div className="dayContentLarge" id="dayContentLarge_target">
-									<div className='hourSpan' id="hourSpanLarge_target">
 
+									<div className='hourSpan' id="hourSpanLarge_target">
 										<div className="hourLine" />
 										<div id="time_target">00:00</div>
-										<div className="eventRow formRow" id="eventRow_target">
-											<button className="relButton">
-												Sometext
-											</button>
-										</div>
-
 									</div>
+
+									<div className="eventRow formRow" id="eventRow_target">
+										<button className="relButton">
+											Sometext
+										</button>
+									</div>
+
 								</div>
 							</div>
 						</div>
@@ -79,28 +80,28 @@ const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 
 							<div className="dayCellSmall">
 								<div className="dayContentSmall" id="dayContentSmall_target">
+
 									<div className='hourSpan' id="hourSpanSmall_target">
-										
 										<div className="hourLine" />
 										<div>00:00</div>
-
 									</div>
+
 								</div>
 							</div>
 
 							<div className="dayCellLarge">
 								<div className="dayContentLarge" id="dayContentLarge_target">
-									<div className='hourSpan' id="hourSpanLarge_target">
 
+									<div className='hourSpan' id="hourSpanLarge_target">
 										<div className="hourLine" />
 										<div id="time_target">00:00</div>
-										<div className="eventRow formRow" id="eventRow_target">
-											<button className="relButton">
-												Sometext
-											</button>
-										</div>
-
 									</div>
+									<div className="eventRow formRow" id="eventRow_target">
+										<button className="relButton">
+											Sometext
+										</button>
+									</div>
+
 								</div>
 							</div>
 
@@ -144,8 +145,8 @@ const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 
 };
 
-const heightProps = ['height', 'padding-top', 'padding-bottom'];
-const widthProps = ['width', 'padding-left', 'padding-right'];
+const heightProps = ['height'];
+const widthProps = ['width'];
 
 const useCalendarMeasurements = ({ span, smallScreen, leftExpanded }) => {
 
@@ -478,25 +479,22 @@ export const DayView = ({
 											createCompositeFromEvent(item, forms, schedules, reduceComposite);
 										}
 										setShowForm(true);
-									}
+									};
+
+									const timeDisplay = (item) => item?.complete === 'skipped' ? 'Skipped' : dateTimeRange(item.startStamp, item.endStamp);
+
 									return (
 										<React.Fragment key={item._id}>
-											<span className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} onClick={() => clickHandler(item)}/>
+											<div className={`${baseClass}Span ${pointIndicator}`} style={lineStyle} onClick={() => clickHandler(item)}/>
 											<div className={`${baseClass}Row formRow`} style={formatting[jdx].row}>
-												{onRight && (
-													<p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p>
-												)}
+												{onRight && <p className="sep">{timeDisplay(item)}</p>}
 												<button className="relButton" 
 													style={{ borderWidth: '2px', borderColor: colorScheme[item.path.split('/')[0]] }}
 													onClick={() => clickHandler(item)}
 													>
 													{item.path.split('/')[item.path.split('/').length - 1]}
 												</button>
-												{!onRight && (
-													item?.complete === 'skipped' ?
-														<p className="sep">Skipped</p>
-														: <p className="sep">{dateTimeRange(item.startStamp, item.endStamp)}</p>
-												)}
+												{!onRight && <p className="sep">{timeDisplay(item)}</p>}
 											</div>
 										</React.Fragment>
 									);
