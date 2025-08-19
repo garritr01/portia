@@ -626,7 +626,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 
 export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
-	const { form, event, schedules, dirty, toDelete, errors } = composite;
+	const { form, event, completion, schedules, dirty, toDelete, errors } = composite;
 	const [pendingSave, setPendingSave] = useState(false); // Toggle to allow for updates before saving
 	const [suggPaths, setSuggPaths] = useState([{ display: '', value: '' }]); // Hold suggested paths for quick loading
 	const [editSchedule, setEditSchedule] = useState(null); // Hold _id of schedule currently being edited
@@ -642,11 +642,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
+	useEffect(() => console.log("completion:\n", completion), [completion]);
 	//useEffect(() => console.log("editSchedule:\n", editSchedule), [editSchedule]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
-	//useEffect(() => console.log("dirty:\n", dirty), [dirty]);
+	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
 	//useEffect(() => console.log("errors:\n", errors), [errors]);
-	//useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
+	useEffect(() => console.log("toDelete:\n", toDelete), [toDelete]);
 	//useEffect(() => console.log("sync:\n", syncStartAndEnd), [syncStartAndEnd])
 
 	// Holds last state for easy reversion

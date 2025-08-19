@@ -1,11 +1,11 @@
 // helpers/DataHandler.js
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext.js';
-import { useFetchEvents, useFetchForms, useFetchSchedules } from '../requests/CalendarData.js';
+import { useFetchEvents, useFetchCompletions, useFetchForms, useFetchSchedules } from '../requests/CalendarData.js';
 import { useFetchChecklist } from '../requests/ChecklistData.js'; 
 import { useSave } from '../requests/General.js';
-import { getAllRecurs, timeStampsToDates } from './DateTimeCalcs';
+import { getAllRecurs, ISOsToDates } from './DateTimeCalcs';
 
 const mergeUpdate = (all, updated, deleted) => {
 	// If they passed in an array, fold each element in turn
@@ -23,15 +23,21 @@ const mergeUpdate = (all, updated, deleted) => {
 export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 	const { user } = useUser();
 	const save = useSave();
-	const fetchEvents = useFetchEvents(startDate, endDate);
-	const fetchForms = useFetchForms();
-	const fetchSchedules = useFetchSchedules();
+	const getEvents = useFetchEvents(startDate, endDate);
+	const getCompletions = useFetchCompletions(startDate, endDate);
+	const getForms = useFetchForms();
+	const getSchedules = useFetchSchedules();
 
 	const [events, setEvents] = useState([]);
+	const [completions, setCompletions] = useState([]);
 	const [forms, setForms] = useState([]);
 	const [schedules, setSchedules] = useState([]);
 	const [schedulesLoaded, setSchedulesLoaded] = useState(false); // Flag for initially defining recurs
 	const [recurs, setRecurs] = useState([]);
+
+	useEffect(() => completions && console.log(completions[0]), [completions]);
+
+	const eventCache = useRef(new Map());
 
 	// initial loads + parameter changes
 
@@ -40,20 +46,30 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 			setEvents([]);
 			return;
 		}
-		fetchEvents()
-			.then(setEvents)
+		getEvents()
+			.then(utcEvents => setEvents(utcEvents.map(obj => obj)))
 			.catch(() => setEvents([]));
-	}, [user, startDate, endDate, fetchEvents]);
+	}, [user, startDate.getTime(), endDate.getTime()]);
+
+	useEffect(() => {
+		if (!user || !startDate || !endDate) {
+			setCompletions([]);
+			return;
+		}
+		getCompletions()
+			.then(utcCompletions => setCompletions(utcCompletions.map(obj => obj)))
+			.catch(() => setCompletions([]));
+	}, [user, startDate.getTime(), endDate.getTime()]);
 
 	useEffect(() => {
 		if (!user) {
 			setForms([]);
 			return;
 		}
-		fetchForms()
+		getForms()
 			.then(setForms)
 			.catch(() => setForms([]));
-	}, [user, fetchForms]);
+	}, [user]);
 
 	useEffect(() => {
 		if (!user) {
@@ -62,7 +78,7 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 			setSchedulesLoaded(false);
 			return;
 		}
-		fetchSchedules()
+		getSchedules()
 			.then((data) => {
 				setSchedules(data);
 				return data;
@@ -73,7 +89,7 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 				setRecurs([]);
 				setSchedulesLoaded(false);
 			});
-	}, [user, fetchSchedules]);
+	}, [user]);
 
 	useEffect(() => {
 		if (!user || !startDate || !endDate || !schedulesLoaded) {
@@ -82,16 +98,17 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 		}
 		const allRecurs = getAllRecurs(schedules, startDate, endDate);
 		setRecurs(allRecurs);
-	}, [user, schedulesLoaded, startDate, endDate]);
+	}, [user, schedulesLoaded, startDate.getTime(), endDate.getTime()]);
 
 	const upsertComposite = useCallback(
 		async (composite) => {
 
 			// normalize your payload
-			const { form, event, schedules, dirty, toDelete } = composite;
+			const { form, event, completion, schedules, dirty, toDelete } = composite;
 			const payload = {
 				form,
 				event,
+				completion,
 				schedules,
 				dirty, 
 				toDelete
@@ -103,8 +120,9 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 				const saved = await save("composite", "POST", payload);
 
 				setForms(prev => mergeUpdate(prev, [saved.form], [saved?.deletions?.form]));
-				setEvents(prev => mergeUpdate(prev, [timeStampsToDates(saved.event)], [saved?.deletions?.event]));
-				const newSchedules = saved.schedules.map((s) => (timeStampsToDates(s)));
+				setEvents(prev => mergeUpdate(prev, [ISOsToDates(saved.event)], [saved?.deletions?.event]));
+				setCompletions(prev => mergeUpdate(prev, [ISOsToDates(saved.completion)], [saved?.deletions?.completion]))
+				const newSchedules = saved.schedules.map((s) => (ISOsToDates(s)));
 				setSchedules((prev) => mergeUpdate(prev, newSchedules, saved?.deletions?.schedules));
 				setRecurs((prev) => [
 					...prev.filter(r => 
@@ -124,7 +142,7 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 		[save, startDate, endDate]
 	);
 
-	return { upsertComposite, events, forms, schedules, recurs };
+	return { upsertComposite, events, forms, completions, schedules, recurs };
 };
 
 export const useChecklistDataHandler = () => {

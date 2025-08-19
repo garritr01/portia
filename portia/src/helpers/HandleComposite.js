@@ -10,10 +10,9 @@ export const makeEmptyForm = () =>  ({
 });
 export const makeEmptyEvent = () =>  ({
 	_id: null,
-	formID: null, // Stores initial form used to create event form, updates based on new state of form
-	scheduleID: null, // Stores the recurID
+	scheduleID: null, // Stores the recur scheduleID
+	completionID: null, // Stores the completionID (handling completion of scheduled event)
 	path: '',
-	scheduleStart: null, // Store the schedule instance's timestamp (for omitting schedule on calendar)
 	info: [],
 	complete: 'pending',
 	startStamp: new Date(), // Define start time of event
@@ -22,21 +21,30 @@ export const makeEmptyEvent = () =>  ({
 export const makeEmptySchedule = () => ({
 	_id: null,
 	path: '',
-	formID: null, // Form to access for recording
 	startStamp: new Date(),
 	endStamp: new Date(), // Use date here, but store as endStamp in ms
 	period: null, // null (no schedule)/single/daily/weekly/monthly/yearly
 	interval: 1, // Every other day/week etc...
 	until: null,
-	tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", // Timezone to base recurrence on
+	tz: null, // Timezone to base recurrence on
+});
+export const makeEmptyCompletion = () => ({
+	_id: null,
+	path: '',
+	scheduleID: null,
+	eventID: null,
+	startStamp: null,
+	endStamp: null,
+	tz: null,
 });
 export const initialCompositeState = {
 	form: makeEmptyForm(),
 	event: makeEmptyEvent(),
 	schedules: {},
-	dirty: { form: false, event: false, schedules: {} },
+	completion: makeEmptyCompletion(),
+	dirty: { form: false, event: false, completion: false, schedules: {} },
 	errors: { form: {}, event: {}, schedules: {} },
-	toDelete: { form: false, event: false, schedules: {} }
+	toDelete: { form: false, event: false, completion: false, schedules: {} }
 };
 
 // Recursive composite update helper
@@ -57,7 +65,7 @@ const setNested = (obj, path, value) => {
 		...(obj || {}),
 		[head]: setNested((obj || {})[head], tail, value),
 	};
-}
+};
 
 // Build object full of falses mirroring passed in object at top level
 const buildFalseObj = (obj) => Object.keys(obj || {}).reduce((acc, k) => { 
@@ -136,7 +144,8 @@ export const updateComposite = (state, action) => {
 				...state,
 				toDelete: {
 					...state.toDelete,
-					[delObjType]: action?.delete === false ? false : true
+					[delObjType]: action?.delete === false ? false : true,
+					...((delObjType === 'event') ? { completion: action?.delete === false ? false : true } : {})
 				}
 			};
 
@@ -178,49 +187,56 @@ export const updateComposite = (state, action) => {
 			}
 	
 		case "set":
-			const setForm = action.form ? action.form : state.form;
-			const setEvent = action.event ? action.event : state.event;
-			const setSchedules = action.schedules ? action.schedules : state.schedules;
-			const setErrors = action.errors ? action.errors : state.errors;
+			const setForm = action.form ?? state.form;
+			const setEvent = action.event ?? state.event;
+			const setCompletion = action.completion ?? state.completion;
+			const setSchedules = action.schedules ?? state.schedules;
+			const setErrors = action.errors ?? state.errors;
 
 			return {
 				form: setForm,
 				event: setEvent,
+				completion: setCompletion,
 				schedules: setSchedules,
 				errors: setErrors,
 				toDelete: {
 					form: action.form ? false : state.toDelete.form,
 					event: action.event ? false : state.toDelete.event,
+					completion: action.completion ? false : state.toDelete.completion,
 					schedules: action.schedules ? buildFalseObj(setSchedules) : state.toDelete.schedules,
 				},
 				dirty: {
 					form: false,
 					event: false,
+					completion: action?.dirtyComplete ?? false,
 					schedules: action.schedules ? buildFalseObj(setSchedules) : state.dirty.schedules,
 				}
 			};
 
 		default:
 
-			const defForm = action.form ? action.form : state.form;
-			const defEvent = action.event ? action.event : state.event;
-			const defSchedules = action.schedules ? action.schedules : state.schedules;
-			const defErrors = action.errors ? action.errors : state.errors;
+			const defForm = action.form ?? state.form;
+			const defEvent = action.event ?? state.event;
+			const defCompletion = action.completion ?? state.completion;
+			const defSchedules = action.schedules ?? state.schedules;
+			const defErrors = action.errors ?? state.errors;
 
 			return {
 				form: defForm,
 				event: defEvent,
+				completion: defCompletion,
 				schedules: defSchedules,
 				errors: defErrors,
 				toDelete: state.toDelete,
 				dirty: {
 					form: state.dirty.form || Boolean(action.form),
 					event: state.dirty.event || Boolean(action.event),
+					completion: state.dirty.completion || Boolean(action.completion),
 					schedules: mergeSchedulesDirty(state.dirty.schedules, action.schedules),
 				},
 			}
 	}
-}
+};
 
 // Initialize empty form for event, form, sched
 export const initEmptyComposite = (date, reduceComposite) => {
@@ -230,13 +246,16 @@ export const initEmptyComposite = (date, reduceComposite) => {
 	clicked.setHours(current.getHours(), current.getMinutes(), 0, 0);
 	reduceComposite({ type: 'drill', path: ['event', 'endStamp'], value: clicked });
 	reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
-}
+};
 
 // Create composite based on event
-export const createCompositeFromEvent = (event, forms, schedules, reduceComposite) => {
+export const createCompositeFromEvent = (event, forms, completions, schedules, reduceComposite) => {
 
 	// Should always be found
 	const newForm = forms.find(f => f.path === event.path);
+
+	// Find completion if exists
+	const newCompletion = completions.find(c => c._id === event.completionID);
 
 	// None to many may be found
 	const newSchedList = schedules.filter(s => s.path === event.path);
@@ -251,29 +270,34 @@ export const createCompositeFromEvent = (event, forms, schedules, reduceComposit
 		type: 'set',
 		event: assignKeys(newEvent),
 		form: assignKeys(newForm),
+		completion: newCompletion,
 		schedules: newScheds,
 	});
 
-}
+};
 
 // Create composite based on recur
 export const createCompositeFromRecur = (recur, forms, schedules, reduceComposite) => {
 	const { isRecur, ...recurClean } = recur;
+	const { tz, _id, ...eventBasis } = recurClean;
 
-	const newSchedList = schedules.filter(s => s.path === recurClean.path);
+	const newSchedList = schedules.filter(s => s.path === recur.path);
 	const newScheds = Object.fromEntries(newSchedList.map(s => [s._id, s]));
 
-	let newForm = forms.find(f => f.path === recurClean.path);
-	if (!newForm.includeStart && new Date(recurClean.startStamp).getTime() !== new Date(recurClean.endStamp).getTime()) {
+	const newCompletion = {
+		...recurClean,
+		eventID: null,
+	};
+
+	let newForm = forms.find(f => f.path === recur.path);
+	if (!newForm.includeStart && recur.startStamp.getTime() !== recur.endStamp.getTime()) {
 		newForm = { ...newForm, includeStart: true }
 	}
 
 	let newEvent = { 
 		...makeEmptyEvent(), 
-		...recurClean,
-		_id: null,
-		formID: newForm._id,
-		scheduleStart: recurClean.startStamp,
+		...eventBasis,
+		completionID: _id,
 		info: newForm.info.map(f => {
 			const { suggestions, baseValue, placeholder, ...cleanF } = f;
 			return({ 
@@ -295,6 +319,8 @@ export const createCompositeFromRecur = (recur, forms, schedules, reduceComposit
 		type: 'set', 
 		event: assignKeys(newEvent), 
 		form: assignKeys(newForm), 
+		completion: newCompletion,
+		dirtyComplete: true,
 		schedules: newScheds
 	});
 };

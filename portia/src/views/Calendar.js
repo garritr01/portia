@@ -189,17 +189,11 @@ const useCalendarMeasurements = ({ span, smallScreen, leftExpanded }) => {
 	return { widths, heights };
 };
 
-export const DayView = ({
-	selectedDate, // Date which range is based on
-	days,
-	onDayClick, // Could change span or just selected date, always changes range and causes update
-	leftExpanded, // For formatting
-}) => {
+export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 
 	// --- SCREEN SIZE HANDLERS -------------------------------------------------------
 	const smallScreen = useSmallScreen() || false;
 	const { widths, heights } = useCalendarMeasurements({ span: 'day', smallScreen, leftExpanded });
-	useEffect(() => console.log(widths, heights), [widths, heights]);
 	// Switch days via swipe
 	useSwipe({
 		onSwipeLeft: smallScreen && !leftExpanded ? () => onDayClick(addTime(selectedDate, { days: 1 }), 'day') : null,
@@ -211,7 +205,7 @@ export const DayView = ({
 	const [showForm, setShowForm] = useState(false);
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
-	const { upsertComposite, events, forms, schedules, recurs } = useCalendarDataHandler(days[0], days[days.length - 1], reduceComposite);
+	const { upsertComposite, events, forms, completions, schedules, recurs } = useCalendarDataHandler(days[0], addTime(days[days.length - 1], { days: 1 }), reduceComposite);
 
 	// Styling constants
 	const eventDisplayPad = 8;
@@ -301,10 +295,8 @@ export const DayView = ({
 	// Format events for display in dayCell
 	const formatEvents = (date, isLarge) => {
 		// Filter out resolved schedules
-		const activeRecurs = recurs.filter(r => !events.some(e =>
-			e.scheduleID === r.scheduleID
-			&& new Date(e.scheduleStart).getTime() === new Date(r.startStamp).getTime()
-		));
+		const completedIDs = new Set(completions.map(c => c._id));
+		const activeRecurs = recurs.filter(r => !completedIDs.has(r._id));
 
 		// Get all events that overlap the current date
 		const daysEvents = [...events, ...activeRecurs].filter(item =>
@@ -476,7 +468,7 @@ export const DayView = ({
 										if (item.isRecur) {
 											createCompositeFromRecur(item, forms, schedules, reduceComposite);
 										} else {
-											createCompositeFromEvent(item, forms, schedules, reduceComposite);
+											createCompositeFromEvent(item, forms, completions, schedules, reduceComposite);
 										}
 										setShowForm(true);
 									};

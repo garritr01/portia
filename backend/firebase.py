@@ -14,8 +14,7 @@ if not firebase_admin._apps:
 db = firestore.client()
 formsCo = db.collection("forms")
 eventsCo = db.collection("events")
-pathsCo = db.collection("paths") # Implement later
-summariesCo = db.collection("summaries") # Maybe implement later
 schedulesCo = db.collection("schedules")
+completionsCo = db.collection("completions")
 checklistCo = db.collection("checklist")
 usersCo = db.collection("users")

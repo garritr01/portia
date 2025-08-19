@@ -89,6 +89,11 @@ export const typeCheck = (value, valueType) =>
 // Objects check nested values based on keys 
 // Arrays check each value for specified check
 const buildTypeValidity = (keys, value, allowedTypes, overallState, contentType = null) => {
+
+	// Ignore these while migration hasn't dropped old values
+	const lastKey = keys.length > 0 ? keys[keys.length - 1] : null;
+	if (typeof lastKey === 'string' && (lastKey.endsWith('_orig') || lastKey.endsWith('_new'))) { return }
+
 	// Record location of check
 	const path = keys.join('->') || 'root';
 	//console.log(`Checking ${path} for`, allowedTypes, '\nContains: ', value);
@@ -107,7 +112,7 @@ const buildTypeValidity = (keys, value, allowedTypes, overallState, contentType 
 			)
 		);
 	} else if (type === 'array') {
-		if (keys[keys.length - 1] === 'info') {
+		if (lastKey === 'info') {
 			return value.map((val, idx) => buildTypeValidity([ ...keys, idx], val, allowedTypes, overallState, val.type));
 		} else {
 			return value.map((val, idx) => buildTypeValidity([...keys, idx], val, allowedTypes, overallState, contentType));
@@ -176,10 +181,9 @@ export const validateEvent = (event) => {
 	const allowedTypes = {
 		_id: ['null', 'string'],
 		ownerID: ['undefined', 'string'],
-		formID: ['null', 'string'],
 		scheduleID: ['null', 'string'],
+		completionID: ['null', 'string'],
 		path: ['string', pathCheck],
-		scheduleStart: ['null', 'date'],
 		info: {
 			content: ['any', contentCheck],
 			label: ['string'],
@@ -199,13 +203,12 @@ export const validateSchedule = (sched) => {
 	const allowedTypes = {
 		_id: ['null', 'string'],
 		ownerID: ['undefined', 'string'],
-		formID: ['null', 'string'],
 		path: ['string', pathCheck],
 		startStamp: ['date'],
 		endStamp: ['date'],
+		until: ['null', 'date'],
 		period: ['string'],
 		interval: ['number', numberCheck],
-		until: ['null', 'date'],
 		tz: ['any', tzCheck],
 	}
 

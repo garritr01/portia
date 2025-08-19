@@ -4,8 +4,7 @@ import { parseISO } from 'date-fns';
 import { v4 as uuid } from 'uuid';
 import { clamp } from './Misc';
 
-// Find user's timezone on load and generate recurrences accordingly
-export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+// Define options for scheduling
 export const periodOptions = [
 	{ display: 'No Schedule', value: null, altDisplay: "None but this shouldn't appear" },
 	{ display: 'No Repeat', value: 'single', altDisplay: "Just once" },
@@ -38,29 +37,50 @@ export const monthOptions = [
 	{ display: "Dec", value: 11 }
 ];
 
+// Find user's timezone on load and generate recurrences accordingly
+export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+
 /* Convert predefined keys to Date objects */
 const timeStampKeys = ['startStamp', 'endStamp', 'until', 'scheduleStart']; // Define keys that could contain
-export const timeStampsToDates = (obj, convertFromUTC = true) => {
-	if (obj.tz === null) { convertFromUTC = false }
+export const ISOsToDates = (obj) => {
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>
 			timeStampKeys.includes(k) && v
-				? [k, convertFromUTC ? toZonedTime(parseISO(v), LOCAL_TZ) : parseISO(v)]
+				? [k, parseISO(v)]
 				: [k, v]
 		)
 	);
 };
 
-export const datesToTimeStamps = (obj, convertToUTC = true) => {
-	if (obj.tz === null) { convertToUTC = false }
+export const DatesToISOs = (obj) => {
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>
 			timeStampKeys.includes(k) && v
-				? [k, convertToUTC ? fromZonedTime(v, obj.tz ?? LOCAL_TZ).toISOString() : v.toISOString()]
+				? [k, v.toISOString()]
 				: [k, v]
 		)
 	);
 };
+
+/** Convert to specified tz
+ * - Event .tz should be undefined (UTC -> local)
+ * - Schedule .tz could be null (no conversion), or existing (obj.tz -> local)
+ */
+export const convertToTZ = (obj) => {
+	if (obj?.tz === null) { return obj }
+	const srcTZ = obj?.tz ?? 'UTC';
+	return Object.fromEntries(
+		Object.entries(obj).map(([k, v]) =>
+			timeStampKeys.includes(k) && v
+				? [k, toZonedTime(fromZonedTime(v, srcTZ), LOCAL_TZ)]
+				: [k, v]
+		)
+	)
+}
+
+/** Convert specific keys within objects within array from local to UTC */
+
+/** Convert specific keys within objects within array from UTC to local */
 
 /* Sort checklist on load */
 export const sortChecklist = (checklist) => {
@@ -228,7 +248,7 @@ export const editFriendlyDateTime = (date) => {
 		const now = new Date();
 		return {
 			year: String(now.getFullYear()),
-			month: String(now.getMonth()),
+			month: String(now.getMonth() + 1),
 			day: String(now.getDate()),
 			hour: String(now.getHours()),
 			minute: String(now.getMinutes()),
@@ -245,7 +265,7 @@ export const editFriendlyDateTime = (date) => {
 	}
 };
 
-// Convert parts to js date
+// Convert parts to js date4e4
 export const calcFriendlyDateTime = (unit, baseDate, updatedParts) => {
 	if (!baseDate || !updatedParts) { return null };
 	// parse or fallback to current date part
@@ -405,22 +425,24 @@ const getOccurances = (rRule, start, end) => {
 
 /** Make 'single' schedule occurance into recur */
 const makeSingleRecur = (sched) => ({
-	_id: uuid(),
+	_id: `${sched._id}_${sched.startStamp.toISOString()}`,
 	scheduleID: sched._id,
 	path: sched.path,
 	startStamp: sched.startStamp,
 	endStamp: sched.endStamp,
 	isRecur: true,
+	tz: sched.tz
 });
 
 /** Make repeating schedule occurance into recur */
 const makeMultiRecur = (sched, recur) => ({
-	_id: uuid(),
+	_id: `${sched._id}_${recur.toISOString()}`,
 	scheduleID: sched._id,
 	path: sched.path,
 	startStamp: recur,
 	endStamp: addTime(recur, timeDiff(sched.endStamp, sched.startStamp)),
 	isRecur: true,
+	tz: sched.tz
 });
 
 // #endregion

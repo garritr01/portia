@@ -1,65 +1,62 @@
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Union, Iterable
 
 tsKeys = ("startStamp", "endStamp", "until", "scheduleStart")
 
-def _to_dt(v: Any) -> Any:
-	"""ISO '...Z' or datetime -> timezone-aware datetime (UTC). Others pass through."""
-	if v is None:
-		return None
-	if isinstance(v, datetime):
-		return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
-	if isinstance(v, str):
-		try:
-			# accept 'Z' suffix or offset
-			return datetime.fromisoformat(v.replace("Z", "+00:00")).astimezone(timezone.utc)
-		except ValueError:
-			return v  # leave as-is if not parseable
-	return v
+def _isoToDt(iso):
+	if not isinstance(iso, str):
+		return iso
 
-def _to_iso_z(dt: Any) -> Any:
-	"""datetime -> ISO string with 'Z'. Others pass through."""
+	s = iso.strip()
+	try:
+		dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+		dtUTC = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+		return dtUTC
+	except ValueError:
+		return iso
+
+def _dtToIso(dt):
 	if not isinstance(dt, datetime):
 		return dt
-	if dt.tzinfo is None:
-		dt = dt.replace(tzinfo=timezone.utc)
-	return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
-def _convert_dict_to_timestamp(d: Dict[str, Any]) -> Dict[str, Any]:
+	dtUTC = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+	iso = dtUTC.isoformat().replace("+00:00", "Z")
+	return iso
+
+def _dictToDt(d):
 	out = dict(d)
 	for k in tsKeys:
 		if k in out and out[k] is not None:
-			out[k] = _to_dt(out[k])
+			out[k] = _isoToDt(out[k])
 	return out
 
-def _convert_dict_to_iso(d: Dict[str, Any]) -> Dict[str, Any]:
+def _dictToIso(d):
 	out = dict(d)
 	for k in tsKeys:
 		if k in out and out[k] is not None:
-			out[k] = _to_iso_z(out[k])
+			out[k] = _dtToIso(out[k])
 	return out
 
-def _convertStamps2TimeStamp(objs: Union[Dict[str, Any], List[Dict[str, Any]]]):
+def _objsToDt(objs):
 	"""
 	Convert tsKeys in obj(s) to timezone-aware datetimes (UTC).
 	Accepts a single dict or a list of dicts and returns the same shape.
 	"""
 	if isinstance(objs, list):
-		return [_convert_dict_to_timestamp(o) for o in objs]
+		return [_dictToDt(o) for o in objs]
 	elif isinstance(objs, dict):
-		return _convert_dict_to_timestamp(objs)
+		return _dictToDt(objs)
 	else:
 		return objs  # pass through unsupported shapes
 
-def _convertStamps2ISOString(objs: Union[Dict[str, Any], List[Dict[str, Any]]]):
+def _objsToIso(objs):
 	"""
 	Convert tsKeys in obj(s) to ISO 8601 '...Z' strings.
 	Accepts a single dict or a list of dicts and returns the same shape.
 	"""
 	if isinstance(objs, list):
-		return [_convert_dict_to_iso(o) for o in objs]
+		return [_dictToIso(o) for o in objs]
 	elif isinstance(objs, dict):
-		return _convert_dict_to_iso(objs)
+		return _dictToIso(objs)
 	else:
 		return objs  # pass through unsupported shapes

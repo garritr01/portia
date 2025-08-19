@@ -1,7 +1,9 @@
 # Usage Notes
 ## Bugs
 - Updated schedules don't remove the old instance until reload or selectedDateChange
+- USE A CONSISTENT METHOD FOR THE MF TIMEZONES 
 ## UX Improvements
+- Update indenting so lines don't overlap values (might be nice to keep it seems to indicate fucked up logging?)
 - Add user settings, start with custom color scheme for calendar
 - Add hover to show info about certain buttons
 - Add move field to form
