@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 
-tsKeys = ("startStamp", "endStamp", "until", "scheduleStart")
+tsKeys = ("startStamp", "endStamp", "until")
 
 def _isoToDt(iso):
 	if not isinstance(iso, str):

@@ -1,7 +1,6 @@
 import { RRule } from 'rrule';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
-import { v4 as uuid } from 'uuid';
 import { clamp } from './Misc';
 
 // Define options for scheduling
@@ -41,7 +40,7 @@ export const monthOptions = [
 export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
 /* Convert predefined keys to Date objects */
-const timeStampKeys = ['startStamp', 'endStamp', 'until', 'scheduleStart']; // Define keys that could contain
+const timeStampKeys = ['startStamp', 'endStamp', 'until']; // Define keys that could contain
 export const ISOsToDates = (obj) => {
 	return Object.fromEntries(
 		Object.entries(obj).map(([k, v]) =>

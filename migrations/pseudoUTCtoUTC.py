@@ -136,8 +136,8 @@ def migrateCollection(db, name, applyLevel):
 def run(mode):
 	ensure_app()
 	db = firestore.client()
-	for colName in ["schedules", "events"]:
-		migrateCollection(db, colName, mode)
+	#for colName in ["schedules", "events"]:
+	migrateCollection(db, "events", mode)
 
 if __name__ == "__main__":
 	mode = int(os.getenv("APPLY", "0"))

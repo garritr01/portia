@@ -303,6 +303,7 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 			(timeDiff(normDate(item.startStamp), date).days === 0)
 			|| (item.startStamp < date && item.endStamp > date)
 		).sort((a, b) => sortEvents(a, b));
+		daysEvents.map(e => e.path.endsWith("floss") && !e.isRecur && console.log(e.startStamp));
 		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ startStamp: e.startStamp, endStamp: e.endStamp, path: e.path, _id: e._id }));
 
 		// Grab Dummy Measurements

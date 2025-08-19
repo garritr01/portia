@@ -35,8 +35,6 @@ export const useCalendarDataHandler = (startDate, endDate, reduceComposite) => {
 	const [schedulesLoaded, setSchedulesLoaded] = useState(false); // Flag for initially defining recurs
 	const [recurs, setRecurs] = useState([]);
 
-	useEffect(() => completions && console.log(completions[0]), [completions]);
-
 	const eventCache = useRef(new Map());
 
 	// initial loads + parameter changes
