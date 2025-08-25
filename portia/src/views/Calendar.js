@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useEffect, useReducer } from 'react';
 import { FiPlus, FiChevronsRight, FiChevronsLeft } from 'react-icons/fi';
 import {
-	returnDates,
+	useTZ,
+	defineCalendarDates,
 	addTime,
 	timeDiff,
 	normDate,
@@ -12,16 +13,15 @@ import {
 } from '../helpers/DateTimeCalcs';
 import { useCalendarDataHandler } from '../helpers/DataHandlers';
 import {
-	initialCompositeState,
+	makeEmptyComposite,
 	updateComposite,
 	initEmptyComposite,
 	createCompositeFromRecur,
 	createCompositeFromEvent,
 } from '../helpers/HandleComposite';
-import { assignKeys } from '../helpers/Misc';
 import { typeCheck } from '../helpers/InputValidation';
 import { useSwipe, useSmallScreen, useWindowSize } from '../helpers/DynamicView';
-import { getDummyStyle, getDummyWithChildrenStyle } from '../helpers/Measure';
+import { getDummyWithChildrenStyle } from '../helpers/Measure';
 import { DropSelect } from '../components/Dropdown';
 import { CompositeForm } from '../components/CompositeForm';
 import { Floater } from '../components/Portal';
@@ -37,6 +37,9 @@ const colors = [
 	"#c5108f",
 	"#000000",
 ];
+
+const heightProps = ['height'];
+const widthProps = ['width'];
 
 const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 
@@ -145,9 +148,6 @@ const DayDummy = ({ span, smallScreen, leftExpanded }) => {
 
 };
 
-const heightProps = ['height'];
-const widthProps = ['width'];
-
 const useCalendarMeasurements = ({ span, smallScreen, leftExpanded }) => {
 
 	const { w } = useWindowSize() || { w: 0 };
@@ -201,15 +201,17 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 	});
 
 	// --- EVENT/FORM/RECUR HANDLERS --------------------------------------------------
-	const [composite, reduceComposite] = useReducer(updateComposite, initialCompositeState);
+	const [composite, reduceComposite] = useReducer(updateComposite, makeEmptyComposite());
 	const [showForm, setShowForm] = useState(false);
 	// autofill/empty form/event/recur based 'showForm' value (_id, 'new', or null)
 	// Memos so useEffect doesn't depend on everything
-	const { upsertComposite, events, forms, completions, schedules, recurs } = useCalendarDataHandler(days[0], addTime(days[days.length - 1], { days: 1 }), reduceComposite);
+	const { localTZ } = useTZ();
+	const { upsertComposite, events, forms, completions, schedules, recurs, formIDsByPath, scheduleIDsByPath } = 
+		useCalendarDataHandler(days[0], addTime(days[days.length - 1], { days: 1 }), localTZ, reduceComposite);
 
 	// Styling constants
 	const eventDisplayPad = 8;
-	const uniqueLeadingDirs = [...new Set(forms.map(f => f.path.split('/')[0]))];
+	const uniqueLeadingDirs = [...new Set(Object.values(forms).map(f => f.path.split('/')[0]))];
 	const colorScheme = Object.fromEntries(
 		uniqueLeadingDirs.map((lDir, idx) => {
 			const color = colors[idx % (colors.length)];
@@ -295,16 +297,17 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 	// Format events for display in dayCell
 	const formatEvents = (date, isLarge) => {
 		// Filter out resolved schedules
-		const completedIDs = new Set(completions.map(c => c._id));
-		const activeRecurs = recurs.filter(r => !completedIDs.has(r._id));
+		const completedIDs = new Set(Object.keys(completions));
+		const activeRecurs = Object.values(recurs).filter(r => !completedIDs.has(r._id));
 
 		// Get all events that overlap the current date
-		const daysEvents = [...events, ...activeRecurs].filter(item =>
-			(timeDiff(normDate(item.startStamp), date).days === 0)
-			|| (item.startStamp < date && item.endStamp > date)
-		).sort((a, b) => sortEvents(a, b));
-		daysEvents.map(e => e.path.endsWith("floss") && !e.isRecur && console.log(e.startStamp));
-		const overlapEvents = daysEvents.filter(e => e.startStamp < date).map(e => ({ startStamp: e.startStamp, endStamp: e.endStamp, path: e.path, _id: e._id }));
+		const dayEnd = addTime(date, { days: 1 });
+		const daysEvents = [ ...Object.values(events), ...activeRecurs ]
+			.filter(item => (item.startStamp < dayEnd && item.endStamp >= date))
+			.sort((a, b) => sortEvents(a, b));
+		const overlapEvents = daysEvents
+			.filter(e => e.startStamp < date)
+			.map(e => ({ startStamp: e.startStamp, endStamp: e.endStamp, path: e.path, _id: e._id }));
 
 		// Grab Dummy Measurements
 		const hourHeight = heights.hourHeight;
@@ -467,9 +470,9 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 
 									const clickHandler = (item) => {
 										if (item.isRecur) {
-											createCompositeFromRecur(item, forms, schedules, reduceComposite);
+											createCompositeFromRecur(item, forms, schedules, formIDsByPath, scheduleIDsByPath, reduceComposite);
 										} else {
-											createCompositeFromEvent(item, forms, completions, schedules, reduceComposite);
+											createCompositeFromEvent(item, forms, completions, schedules, formIDsByPath, scheduleIDsByPath, reduceComposite);
 										}
 										setShowForm(true);
 									};
@@ -500,7 +503,9 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 					<Floater>
 						<CompositeForm
 							allForms={forms}
+							formIDsByPath={formIDsByPath}
 							allSchedules={schedules}
+							scheduleIDsByPath={scheduleIDsByPath}
 							composite={composite}
 							reduceComposite={reduceComposite}
 							setShowForm={setShowForm}
@@ -514,7 +519,7 @@ export const DayView = ({ selectedDate, days, onDayClick, leftExpanded }) => {
 };
 
 export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
-	const months = returnDates(selectedDate, 'year');
+	const months = defineCalendarDates(selectedDate, 'year');
 	const year = selectedDate.getFullYear();
 
 	return (
@@ -538,7 +543,7 @@ export const YearView = ({ selectedDate, onMonthClick, form, setForm }) => {
 
 export const MonthView = ({ selectedDate, onDayClick, form, setForm }) => {
 	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-	const days = returnDates(selectedDate, 'month');
+	const days = defineCalendarDates(selectedDate, 'month');
 	const month = selectedDate.toLocaleString('default', { month: 'long' });
 	const year = selectedDate.getFullYear();
 	const weeksToRender = days.slice(35).some(date => date.getMonth() === selectedDate.getMonth()) ? 6 : 5;

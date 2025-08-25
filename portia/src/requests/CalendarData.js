@@ -4,28 +4,28 @@ import { useCallback } from 'react';
 import { useFetchWithAuth } from './General';
 import { ISOsToDates } from '../helpers/DateTimeCalcs';
 
-export const useFetchEvents = (startDate, endDate) => {
+export const useFetchEvents = () => {
 	const fetchWithAuth = useFetchWithAuth();
 
-	return useCallback(async () => {
-		const query = `?start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`;
+	return useCallback(async (start, end) => {
+		const query = `?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
 		const res = await fetchWithAuth('events', query, {});
 		if (!res.ok) throw new Error(`Status ${res.status}`);
 		const data = await res.json();
 		return data.map(e => ISOsToDates(e));
-	}, [fetchWithAuth, startDate, endDate]);
+	}, [fetchWithAuth]);
 };
 
-export const useFetchCompletions = (startDate, endDate) => {
+export const useFetchCompletions = () => {
 	const fetchWithAuth = useFetchWithAuth();
 
-	return useCallback(async () => {
-		const query = `?start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`;
+	return useCallback(async (start, end) => {
+		const query = `?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
 		const res = await fetchWithAuth('completions', query, {});
 		if (!res.ok) throw new Error(`Status ${res.status}`);
 		const data = await res.json();
 		return data.map(e => ISOsToDates(e));
-	}, [fetchWithAuth, startDate, endDate]);
+	}, [fetchWithAuth]);
 };
 
 export const useFetchForms = () => {

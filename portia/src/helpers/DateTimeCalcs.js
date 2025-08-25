@@ -1,8 +1,12 @@
+import { useState, useMemo, useEffect } from 'react';
 import { RRule } from 'rrule';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
 import { clamp } from './Misc';
+import { clone } from 'rrule/dist/esm/dateutil';
 
+// Define keys that contain datetimes requiring format adjustment
+const timeStampKeys = ['startStamp', 'endStamp', 'until'];
 // Define options for scheduling
 export const periodOptions = [
 	{ display: 'No Schedule', value: null, altDisplay: "None but this shouldn't appear" },
@@ -36,50 +40,87 @@ export const monthOptions = [
 	{ display: "Dec", value: 11 }
 ];
 
-// Find user's timezone on load and generate recurrences accordingly
-export const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+// #region Define TZ information
 
-/* Convert predefined keys to Date objects */
-const timeStampKeys = ['startStamp', 'endStamp', 'until']; // Define keys that could contain
-export const ISOsToDates = (obj) => {
-	return Object.fromEntries(
-		Object.entries(obj).map(([k, v]) =>
-			timeStampKeys.includes(k) && v
-				? [k, parseISO(v)]
-				: [k, v]
-		)
-	);
+const ZONE_NAMES = (typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : []);
+const TZ_COUNT = ZONE_NAMES.length;
+const getLocalTZ = () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+
+/** Compute { strOffset, numOffset } for each time zone */
+const getTzOffset = (tz, baseDate = new Date()) => {
+	let dateStr, match, hr, min;
+	try {
+		dateStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).format(baseDate);
+		match = dateStr.match(/GMT([+-]\d{1,2}):?(\d{2})?$/);
+		hr = parseInt(match[1], 10);
+		min = parseInt(match[2] ?? '0', 10);
+		return { strOffset: `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`, numOffset: hr + (min / 60) };
+	} catch (error) {
+		//console.warn(
+		//	`Error calculating ${tz} offset:`, error,
+		//	`\n Using dateStr: ${dateStr}, match: ${match?.[0] ?? []}, hr: ${hr}, min: ${min}`
+		//);
+		return { strOffset: '', numOffset: undefined };
+	}
 };
 
-export const DatesToISOs = (obj) => {
-	return Object.fromEntries(
-		Object.entries(obj).map(([k, v]) =>
-			timeStampKeys.includes(k) && v
-				? [k, v.toISOString()]
-				: [k, v]
-		)
+/** Compute { display, value, numOffset} for each time zone */
+const getTzInfo = (baseDate = new Date()) => {
+	const tzInfo = ZONE_NAMES.map(tz => {
+		const { strOffset, numOffset } = getTzOffset(tz, baseDate);
+		return {
+			display: `${tz} ${strOffset}`,
+			value: tz,
+			numOffset
+		};
+	}).filter(tz =>
+		Number.isFinite(tz?.numOffset)
 	);
+	
+	if (tzInfo.length < (0.8 * TZ_COUNT)) {
+		console.warn(`${TZ_COUNT - tzInfo.length} of ${TZ_COUNT} are undefined.`);
+	}
+
+	return tzInfo;
 };
 
-/** Convert to specified tz
- * - Event .tz should be undefined (UTC -> local)
- * - Schedule .tz could be null (no conversion), or existing (obj.tz -> local)
- */
-export const convertToTZ = (obj) => {
-	if (obj?.tz === null) { return obj }
-	const srcTZ = obj?.tz ?? 'UTC';
-	return Object.fromEntries(
-		Object.entries(obj).map(([k, v]) =>
-			timeStampKeys.includes(k) && v
-				? [k, toZonedTime(fromZonedTime(v, srcTZ), LOCAL_TZ)]
-				: [k, v]
-		)
-	)
-}
+/** Compute local time zone and dependents on change (timer based trigger) */
+export const useTZ = (pollMin = 0.1) => {
+	const pollingInterval = Math.floor(pollMin * 60000); // ms
+	const [localTZ, setLocalTZ] = useState(() => getLocalTZ());
 
-/** Convert specific keys within objects within array from local to UTC */
+	useEffect(() => {
+		const intervalID = setInterval(() => {
+				const newTZ = getLocalTZ();
+				setLocalTZ(prev => (prev !== newTZ ? newTZ : prev));
+			}, 
+			pollingInterval
+		);
 
-/** Convert specific keys within objects within array from UTC to local */
+		return () => clearInterval(intervalID);
+	}, [pollingInterval]);
+
+	const { localOffset, tzOptions } = useMemo(() => {
+		const now = new Date();
+		const localOffset = getTzOffset(localTZ, now)?.numOffset ?? 0;
+
+		const tzOptions = getTzInfo(now).sort((a, b) => {
+			const diffA = a.numOffset - localOffset;
+			const diffB = b.numOffset - localOffset;
+			const wrappedA = diffA >= 0 ? diffA : 24 + diffA;
+			const wrappedB = diffB >= 0 ? diffB : 24 + diffB;
+			return wrappedA - wrappedB || a.value.localeCompare(b.value);
+		}).map(opt => 
+			({ value: opt.value, display: opt.display })
+		);
+
+		return { localOffset, tzOptions };
+	}, [localTZ]);
+
+	return { localTZ, localOffset, tzOptions };
+};
+
+// #endregion
 
 /* Sort checklist on load */
 export const sortChecklist = (checklist) => {
@@ -93,6 +134,22 @@ export const sortChecklist = (checklist) => {
 		return new Date(a.updatedAt) - new Date(b.updatedAt);
 	});
 };
+
+// #region Datetime Warnings
+
+export const normedCheck = (date) => {
+	if (date.getHours() || date.getMinutes() || date.getSeconds() || date.getMilliseconds()) {
+		console.warn("Non-normed selection: ", date);
+	}
+}
+
+// #endregion
+
+// #region Misc Time Operations
+
+const msPerMin = 60000;
+const msPerHr = 60 * msPerMin;
+const msPerDay = 24 * msPerHr;
 
 /**
  * - jsDate - js Date
@@ -122,51 +179,29 @@ export const addTime = (jsDate, addend) => {
 };
 
 /**
- * Find time diff as whole num
+ * whole number time difference (rounded down) for years, months, days, hours, minutes 
+ * @param {Date} date1 
+ * @param {Date} date2 
  */
-export const timeDiff = (date1, date2) => {
-	// Make sure date1 is always the later date
+export const timeDiff = (date1, date2, inUTC = false) => {
 	if (!date1 || !date2){
 		return { days: null, months: null, years: null, hours: null, minutes: null };
 	}
 
-	if (date1 < date2) {
-		[date1, date2] = [date2, date1];
-	}
+	const msDiff = date1.getTime() - date2.getTime();
+	const monthDiff = inUTC ? date1.getMonth() - date2.getMonth() : date1.getUTCMonth() - date2.getUTCMonth();
+	const yearDiff = inUTC ? date1.getFullYear() - date2.getFullYear() : date1.getUTCFullYear() - date2.getUTCFullYear();
 
-	let years = date1.getFullYear() - date2.getFullYear();
-	let months = date1.getMonth() - date2.getMonth();
-	let days = date1.getDate() - date2.getDate();
-	let hours = date1.getHours() - date2.getHours();
-	let minutes = date1.getMinutes() - date2.getMinutes();
-
-	if (minutes < 0) {
-		minutes += 60;
-		hours -= 1;
-	}
-
-	if (hours < 0) {
-		hours += 24;
-		days -= 1;
-	}
-
-	if (days < 0) {
-		const prevMonth = new Date(date1.getFullYear(), date1.getMonth(), 0); // Last day of prev month
-		days += prevMonth.getDate(); // Get days in prev month
-		months -= 1;
-	}
-
-	if (months < 0) {
-		months += 12;
-		years -= 1;
+	if (msDiff % msPerMin !== 0) {
+		console.warn(`Detected remainder of ${msDiff % msPerMin}ms in: ${date1} - ${date2}`)
 	}
 
 	return {
-		years,
-		months,
-		days,
-		hours,
-		minutes,
+		years: yearDiff,
+		months: monthDiff,
+		days: Math.floor(msDiff / msPerDay),
+		hours: Math.floor(msDiff / msPerHr),
+		minutes: Math.floor(msDiff / msPerMin),
 	};
 };
 
@@ -196,15 +231,16 @@ export const monthLength = (date) => {
 };
 
 /** 'Normalize' date to midnight */
-export const normDate = (date) => {
+export const normDate = (date, UTC = false) => {
 	const normedDate = new Date(date);
-	normedDate.setHours(0, 0, 0, 0);
+	UTC ? normedDate.setUTCHours(0, 0, 0, 0) : normedDate.setHours(0, 0, 0, 0);
 	return normedDate;
 };
 
-/** Return the correct dates based on the view */
-export const returnDates = (baseDate, view) => {
+/** Return the normalized dates required to define the calendar view */
+export const defineCalendarDates = (baseDate, view) => {
 	const centeredDate = normDate(baseDate);
+	console.log(baseDate, centeredDate);
 	let dates = [];
 
 	if (view === 'year') {
@@ -239,7 +275,105 @@ export const returnDates = (baseDate, view) => {
 	return [];
 };
 
+/** Find the holes in cached dates that have to be filled for complete startDate and endDate range */
+export const defFetchRanges = (startDate, endDate, cachedDates, mergeTolerance = 2, chunkTolerance = 10) => {
+
+	// Get ranges corrseponding to holes in cache
+	const createRanges = () => {
+		let ranges = [];
+		let currStart;
+		let currDate = new Date(startDate);
+		while (currDate < endDate) {
+			normedCheck(currDate);
+			if (!currStart && !(cachedDates.has(currDate.getTime()))) { 
+				currStart = currDate; // Set start of a range when start is falsy and currDate not in cache
+			} else if (currStart && (cachedDates.has(currDate.getTime()))) { 
+				// Push a new range when currStart is truthy and currDate is in cache, then clear currDate
+				ranges.push({
+					start: currStart,
+					end: currDate
+				});
+				currStart = null;
+			}
+			currDate = addTime(currDate, { days: 1 }); // Increment by a day
+		}
+
+		normedCheck(currDate);
+		if (currStart) {
+			ranges.push({
+				start: currStart,
+				end: currDate
+			})
+		}
+		return ranges;
+	};
+
+	// Merge nearby ranges
+	const mergeRanges = (ranges) => ranges.reduce((acc, r) => {
+		if (acc.length === 0) { acc.push({ ...r }) }
+		else {
+			const last = acc[acc.length - 1];
+			const gap = timeDiff(r.start, last.end).days;
+			if (gap <= mergeTolerance) { last.end = r.end }
+			else { acc.push({ ...r })}
+		}
+		return acc;
+	}, []);
+
+	// Enforce max chunk size
+	const chunkRanges = (ranges) => ranges.flatMap((r) => {
+		const chunks = [];
+		let s = clone(r.start);
+		while (timeDiff(s, r.end) > chunkTolerance) {
+			const e = addTime(s, { days: chunkTolerance });
+			chunks.push({ start: clone(s), end: clone(e) });
+		}
+		chunks.push({ start: clone(s), end: clone(r.end) });
+		return chunks;
+	});
+
+	const holes = createRanges();
+	if (holes.length === 0) { return [] }
+	const merged = mergeRanges(holes);
+	const chunked = chunkRanges(merged);
+
+	return chunked;
+};
+
+/** Find all midnights in range [start, end) */
+export const dayTicksBetween = (start, end, includeLast = false) => {
+	const lastBase = normDate(end, false).getTime();
+	const last = includeLast ? lastBase + 1 : lastBase;
+	const out = new Set();
+	for (let t = normDate(start, false).getTime(); t < last; t += msPerDay) { out.add(t) }
+	return out;
+};
+
+// #endregion
+
 // #region ---- DATE/TIME FORMAT CONVERTERS --------------------------------
+
+/* Convert predefined keys to Date objects */
+export const ISOsToDates = (obj) => {
+	return Object.fromEntries(
+		Object.entries(obj).map(([k, v]) =>
+			timeStampKeys.includes(k) && v
+				? [k, parseISO(v)]
+				: [k, v]
+		)
+	);
+};
+
+/** Convert predefined keys to ISOStrings */
+export const DatesToISOs = (obj) => {
+	return Object.fromEntries(
+		Object.entries(obj).map(([k, v]) =>
+			timeStampKeys.includes(k) && v
+				? [k, v.toISOString()]
+				: [k, v]
+		)
+	);
+};
 
 // Convert js date to parts for user editing
 export const editFriendlyDateTime = (date) => {
@@ -348,7 +482,7 @@ const period2rRule = {
 	'yearly': RRule.YEARLY,
 };
 // Return RRule style day of the week by index
-const weekday2rRule = [RRule.SU, RRule.MO, RRule.TU,RRule.WE, RRule.TH, RRule.FR,RRule.SA];
+const weekday2rRule = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
 
 /**
  * Get all occurances of schedules between startDate and endDate 
@@ -357,19 +491,19 @@ const weekday2rRule = [RRule.SU, RRule.MO, RRule.TU,RRule.WE, RRule.TH, RRule.FR
  * @param {Date} lastDayMidnight
  * @returns
 */
-export const getAllRecurs = (schedules, startLocal, lastDayMidnightLocal) => {
-	const startUTC = fromZonedTime(startLocal, LOCAL_TZ);
+export const getAllRecurs = (schedules, startLocal, lastDayMidnightLocal, localTZ) => {
+	const startUTC = fromZonedTime(startLocal, localTZ);
 	const endLocal = addTime(lastDayMidnightLocal, { 'days': 1 });
-	const endUTC = fromZonedTime(endLocal, LOCAL_TZ);
+	const endUTC = fromZonedTime(endLocal, localTZ);
 	// Filter out schedules that cannot appear within this range... keep (not expired && starts in/before calendar window)
-	const filteredSchedules = schedules.filter((sched) => (!sched.until || !(sched.until < startLocal)) && !(sched.startStamp > endLocal));
+	const filteredSchedules = schedules.filter((sched) => (!sched.until || !(sched.until < startUTC)) && !(sched.startStamp > endUTC));
 	// Flat map each schedule to get the recurs
 	return filteredSchedules.flatMap(sched => {
 		if (sched.period === 'single') {
 			return [makeSingleRecur(sched)];
 		} else {
-			const rule = objToRRule(sched); // Turn schedule object into RRule
-			const occurs = getOccurances(rule, startUTC, endUTC); // Get occurances of RRule within calendar range
+			const rule = objToRRule(sched, localTZ); // Turn schedule object into RRule
+			const occurs = getOccurances(rule, startUTC, endUTC, localTZ); // Get occurances of RRule within calendar range
 			if (sched.path.endsWith('test')) { console.log("test sched:", sched,"\nrule:", rule, "\noccurs:", occurs) }
 			return occurs.map(recur => makeMultiRecur(sched, recur));
 		}
@@ -381,8 +515,8 @@ export const getAllRecurs = (schedules, startLocal, lastDayMidnightLocal) => {
  * @param {*} obj 
  * @returns {RRule}
  */
-const objToRRule = (obj) => {
-	const tz = obj.tz || LOCAL_TZ;
+const objToRRule = (obj, localTZ) => {
+	const tz = obj.tz || localTZ;
 	const dtStart = fromZonedTime(obj.startStamp, tz);
 	const until = obj.until ? fromZonedTime(obj.until, tz) : undefined;
 
@@ -414,12 +548,12 @@ const objToRRule = (obj) => {
  * @param {Date} end 
  * @returns
  */
-const getOccurances = (rRule, start, end) => {
+const getOccurances = (rRule, start, end, localTZ) => {
 	let { dtstart, ...restOpts } = rRule.options;
 	dtstart = rRule.before(start, true) || dtstart;
 	const adjRRule = new RRule({ ...restOpts, dtstart });
 	const occursUTC = adjRRule.between(start, end, true);
-	return occursUTC.map(d => toZonedTime(d, LOCAL_TZ));
+	return occursUTC.map(d => toZonedTime(d, localTZ));
 };
 
 /** Make 'single' schedule occurance into recur */

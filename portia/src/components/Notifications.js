@@ -10,7 +10,7 @@ export const invalidInputFlash = (elementId) => {
 		element.classList.add('invalidFlash');
 		element.addEventListener('animationend', () => element.classList.remove('invalidFlash'), { once: true });
 	} else {
-		console.warning("No element with id: ", elementId);
+		console.warn("No element with id: ", elementId);
 	}
 }
 

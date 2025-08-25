@@ -26,7 +26,7 @@ import {
 } from '../helpers/DateTimeCalcs';
 import { v4 as uuid } from 'uuid';
 import { dropKeys, assignKeys } from '../helpers/Misc';
-import { makeEmptySchedule } from '../helpers/HandleComposite';
+import { makeEmptySchedule, createCompositeFromPath } from '../helpers/HandleComposite';
 import { ErrorInfoButton, invalidInputFlash } from './Notifications';
 import { DropSelect, InfDropSelect } from './Dropdown';
 
@@ -624,7 +624,7 @@ const EventForm = ({ event, form, errors, changeField, reduceComposite }) => {
 	);
 }
 
-export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposite, upsertComposite, setShowForm }) => {
+export const CompositeForm = ({ allForms, formIDsByPath, allSchedules, scheduleIDsByPath, composite, reduceComposite, upsertComposite, setShowForm }) => {
 
 	const { form, event, completion, schedules, dirty, toDelete, errors } = composite;
 	const [pendingSave, setPendingSave] = useState(false); // Toggle to allow for updates before saving
@@ -642,7 +642,7 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 	//useEffect(() => console.log("form:\n", form), [form]);
 	//useEffect(() => console.log("event:\n", event), [event]);
-	useEffect(() => console.log("completion:\n", completion), [completion]);
+	useEffect(() => console.log("completion:\n", completion.startStamp, ' - ', completion.endStamp, '\n_id === event.completionID?', (completion._id === event.completionID)), [completion]);
 	//useEffect(() => console.log("editSchedule:\n", editSchedule), [editSchedule]);
 	//useEffect(() => console.log("schedules:\n", schedules), [schedules]);
 	useEffect(() => console.log("dirty:\n", dirty), [dirty]);
@@ -668,79 +668,12 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 		if (!form.includeStart) { setSyncStartAndEnd(prev => ({ ...prev, eventStart: true })) }
 	}, [form.includeStart]);
 
-	// For warning about misdefined values
-	/*
-	useEffect(() => {
-		console.log("Triggered warning useEffect");
-		event.info.forEach((f, idx) => {
-			if (f.type === 'text' && typeof(f.content) !== 'string') {
-				console.warn(`Text content at idx ${idx} not string: `, typeof(f.content), f.content);
-			} else if (f.type === 'input') {
-				if (!Array.isArray(f.content)) {
-					console.warn(`Input content at idx ${idx} not object: `, typeof(f.content), f.content);
-				} else {
-					f.content.forEach((val, jdx) => {
-						if (typeof(val) !== 'string') {
-							console.warn(`Input content at idx ${idx}, ${jdx} not string: `, typeof(f.content), f.content);
-						}
-					});
-				}
-			}
-		});
-		form.info.forEach((f, idx) => {
-			if (f.type === 'text') {
-				if (f.baseValue) {
-					console.warn(`Text contains base value`, typeof (f.baseValue), f.baseValue);
-				} 
-			} else if (f.type === 'input') {
-
-				if (!Array.isArray(f.content)) {
-					console.warn(`Input content at idx ${idx} not array: `, typeof (f.content), f.content);
-				} else {
-					f.content.forEach((val, jdx) => {
-						if (typeof (val) !== 'string') {
-							console.warn(`Input content at idx ${idx}, ${jdx} not string: `, typeof (f.content), f.content);
-						}
-					});
-				}
-
-				if (!f?.suggestions) {
-					console.warn(`No suggestions at idx ${idx}.`);
-				} else if (!Array.isArray(f.suggestions)) {
-					console.warn(`Input suggestions at idx ${idx} not array: `, typeof (f.suggestions), f.suggestions);
-				} else {
-					f.suggestions.forEach((val, jdx) => {
-						if (typeof (val) !== 'string') {
-							console.warn(`Input suggestions at idx ${idx}, ${jdx} not string: `, typeof (f.suggestions), f.suggestions);
-						}
-					});
-				}
-			} else if (f.type === 'mc') {
-				if (!f?.options) {
-					console.warn(`mc at idx ${idx} has no options`);
-				} else if (!Array.isArray(f.options)) {
-					console.warn(`Input options at idx ${idx} not array: `, typeof (f.options), f.options);
-				} else {
-					f.options.forEach((val, jdx) => {
-						if (typeof (val) !== 'string') {
-							console.warn(`Input option at idx ${idx}, ${jdx} not string: `, typeof(val), val);
-						}
-					});
-				}
-				if (!f?.baseValue || f.baseValue !== null || typeof(f.baseValue) !== 'string') {
-					console.warn(`mc base value not null or string at ${idx}`, typeof(f?.baseValue), f?.baseValue);
-				}
-			}
-		});
-	}, [form, event]);
-	*/
-
 	// Handle dynamic path for form loading
 	useEffect(() => {
 		const inputPath = form.path; // use form.path to indicate the current path typed in the UI
 		const inputLength = inputPath.split('/').length; // get dir count in path
 
-		const filteredPaths = allForms.map(f => // Map to just the path 
+		const filteredPaths = Object.values(allForms).map(f => // Map to just the path 
 				f.path
 			).filter(p => { // Filter out directories w/o matching parents and those w/ fewer dirs in path than the typed
 				const sameParents = p.split('/').slice(0, inputLength - 1).join('/') === inputPath.split('/').slice(0, inputLength - 1).join('/');
@@ -760,20 +693,6 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 
 		setSuggPaths(uniquePaths);
 	}, [form.path]);
-
-	const uploadByPath = () => {
-		const matchedSchedulesList = allSchedules.filter(s => s.path === form.path);
-		const matchedSchedules = Object.fromEntries(
-			matchedSchedulesList.map(s => [s._id, s])
-		);
-		const matchedForm = allForms.find(f => f.path === form.path)
-		reduceComposite({ type: 'set', form: matchedForm, schedules: matchedSchedules });
-		updateEventUI(matchedForm.info, false);
-		ogState.current.formDirty = false;
-		Object.keys(matchedSchedules).forEach(k => {
-			ogState.current.schedulesDirty[k] = false;
-		});
-	}
 
 	// Update event info for filling out based on form info without removing event content already present
 	const updateEventUI = (updatedFormInfo, usePrev = true) => {
@@ -983,13 +902,13 @@ export const CompositeForm = ({ allForms, allSchedules, composite, reduceComposi
 						errorInfo={{ errID: "path", err: errors?.form?.path?.err }}
 					/>
 					<ErrorInfoButton errID={"path"} err={errors?.form?.path?.err} />
-					{allForms.some(f => f.path === form.path) ?
+					{Object.values(allForms).some(f => f.path === form.path) ?
 						<div className="navCell">
 							<FiUpload 
 								className="relButton" 
 								tabIndex={-1}
-								onClick={() => uploadByPath()}
-								onKeyDown={e => e.key === 'Enter' && uploadByPath()}
+								onClick={() => createCompositeFromPath(form.path, allForms, allSchedules, formIDsByPath, scheduleIDsByPath, reduceComposite)}
+								onKeyDown={e => e.key === 'Enter' && createCompositeFromPath(form.path, allForms, allSchedules, formIDsByPath, scheduleIDsByPath, reduceComposite)}
 							/>
 						</div>
 						: 

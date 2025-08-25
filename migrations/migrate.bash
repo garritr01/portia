@@ -5,6 +5,7 @@ echo "=== Migrations ==========================="
 echo "		1 - (toTS.py)    (DEPR) - create datetime from iso '{key}' -> '{key}TS'"
 echo "		2 - (fromTS.py)  (DEPR) - replace iso '{key}' w/ datetime '{key}TS'"
 echo "		3 - (pseudoUTCtoUTC.py) - convert EDT masquerading as UTC to true UTC"
+echo "		4 - (avgDocSize.py)			- Document size analytics (mode irrelevant, no changes)"
 echo "=========================================="
 read -rp "Migration: " migration
 
@@ -49,8 +50,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # src file parent
 case "$migration" in
   1)  python "$DIR/toTS.py" ;;
 	2)  python "$DIR/fromTS.py" ;;
-	3) python "$DIR/pseudoUTCtoUTC.py" ;;
-  *)   echo "Unknown migration: $migration"; exit 1 ;;
+	3)  python "$DIR/pseudoUTCtoUTC.py" ;;
+	4)  python "$DIR/avgDocSize.py" ;;
+  *)  echo "Unknown migration: $migration"; exit 1 ;;
 esac
 
 

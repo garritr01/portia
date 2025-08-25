@@ -13,7 +13,7 @@ schedulesBP = Blueprint("schedules", __name__, url_prefix="/schedules")
 @logRequests
 @handleFirebaseAuth
 def listSchedules(uID):
+	logger.info(f"GET schedules")
 	docs = schedulesCo.where("ownerID", "==", uID).stream()
-	return jsonify(
-		_objsToIso([{**d.to_dict(), "_id": d.id} for d in docs])
-	), 200
+	scheds = [{**d.to_dict(), "_id": d.id} for d in docs]
+	return jsonify(_objsToIso(scheds)), 200

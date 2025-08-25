@@ -12,6 +12,8 @@ formsBP = Blueprint("forms", __name__, url_prefix="/forms")
 @logRequests
 @handleFirebaseAuth
 def listForms(uID):
+	logger.info("GET forms")
 	docs = formsCo.where("ownerID", "==", uID).stream()
-	return jsonify([{**d.to_dict(), "_id": d.id} for d in docs]), 200
+	forms = [{**d.to_dict(), "_id": d.id} for d in docs]
+	return jsonify(forms), 200
 

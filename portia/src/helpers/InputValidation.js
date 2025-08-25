@@ -172,8 +172,12 @@ export const validateForm = (form) => {
 	}
 
 	const overall = { valid: true };
-	const validity = buildTypeValidity([], form, allowedTypes, overall);
-	return { isValid: overall.valid, validity };
+	try {
+		const validity = buildTypeValidity([], form, allowedTypes, overall);
+		return { isValid: overall.valid, validity };
+	} catch (err) {
+		console.error("Error building form validity:", err, form);
+	}
 }
 
 export const validateEvent = (event) => {
@@ -193,9 +197,14 @@ export const validateEvent = (event) => {
 		startStamp: ['date'],
 		endStamp: ['date'],
 	}
+
 	const overall = { valid: true };
-	const validity = buildTypeValidity([], event, allowedTypes, overall);
-	return { isValid: overall.valid, validity };
+	try {
+		const validity = buildTypeValidity([], event, allowedTypes, overall);
+		return { isValid: overall.valid, validity };
+	} catch (err) {
+		console.error("Error building event validity:", err, event);
+	}
 }
 
 export const validateSchedule = (sched) => {
@@ -213,7 +222,11 @@ export const validateSchedule = (sched) => {
 	}
 
 	const overall = { valid: true };
-	const validity = buildTypeValidity([], sched, allowedTypes, overall);
-	return { isValid: overall.valid, validity};
+	try {
+		const validity = buildTypeValidity([], sched, allowedTypes, overall);
+		return { isValid: overall.valid, validity};
+	} catch (err) {
+		console.error("Error building schedule validity:", err, sched);
+	}
 }
 

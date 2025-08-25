@@ -88,27 +88,30 @@ def upsertComposite(uID) -> dict:
 				validComposite = False
 
 	# Check for completion misalignment
-	if (dirty.get('completion', None) or toDelete.get('completion', None)) and not comp.get("_id", None):
+	touchCompletion = (dirty.get('completion', None) or toDelete.get('completion', None))
+	completionExists = bool(event.get('completionID')) or touchCompletion
+	if touchCompletion and not comp.get("_id", None):
 		invalidCompositeInfo += "\n No completion _id"
 		validComposite = False
 	if toDelete.get('event', None) != toDelete.get('completion', None):
 		invalidCompositeInfo += "\n toDelete['event'] != toDelete['completion]"
 		validComposite = False
-	eSchedID = event.get("scheduleID", None)
-	eCompID = event.get("completionID", None)
-	cSchedID = comp.get("scheduleID", None)
-	cEventID = comp.get("eventID", None)
-	cID = comp.get("_id", None)
-	eID = event.get("_id", None)
-	if eSchedID != cSchedID: # Event and completion should contain same scheduleID
-		invalidCompositeInfo += "\n event and completion contain differing scheduleIDs"
-		validComposite = False
-	if eCompID != cID: # Event should contain correct completionID (could be None)
-		invalidCompositeInfo += f"\n event contains incorrect completionID true({cID}) != joinID({eCompID})"
-		validComposite = False
-	if cEventID != eID: # Completion should contain correct eventID (could be None)
-		invalidCompositeInfo += f"\n completion contains incorrect eventID true({eID}) != joinID({cEventID})"
-		validComposite = False
+	if completionExists:
+		eSchedID = event.get("scheduleID", None)
+		eCompID = event.get("completionID", None)
+		cSchedID = comp.get("scheduleID", None)
+		cEventID = comp.get("eventID", None)
+		cID = comp.get("_id", None)
+		eID = event.get("_id", None)
+		if eSchedID != cSchedID: # Event and completion should contain same scheduleID
+			invalidCompositeInfo += "\n event and completion contain differing scheduleIDs"
+			validComposite = False
+		if eCompID != cID: # Event should contain correct completionID (could be None)
+			invalidCompositeInfo += f"\n event contains incorrect completionID true({cID}) != joinID({eCompID})"
+			validComposite = False
+		if cEventID != eID: # Completion should contain correct eventID (could be None)
+			invalidCompositeInfo += f"\n completion contains incorrect eventID true({eID}) != joinID({cEventID})"
+			validComposite = False
 
 	# Log full info about invalidity and return empty
 	if not validComposite:

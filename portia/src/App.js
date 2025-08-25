@@ -1,14 +1,15 @@
 // App.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LeftMenu } from './views/LeftMenu';
 import { useSmallScreen, useSwipe } from './helpers/DynamicView';
 import { Login, Logout, useUser } from './contexts/UserContext';
 import { DayView, MonthView, YearView } from './views/Calendar';
 import { useConnCheck, useAuthCheck } from './requests/Tests';
-import { returnDates, normDate } from './helpers/DateTimeCalcs';
+import { useTZ, normedCheck, defineCalendarDates, normDate } from './helpers/DateTimeCalcs';
 
 export const App = () => {
+
 	// --- INITIAL TESTS ----------------------------------------------------------------
 	useConnCheck(); // Hit backend to check connectivity
 	const { user } = useUser() || false;
@@ -16,35 +17,40 @@ export const App = () => {
 
 	// --- VIEW HANDLERS ----------------------------------------------------------------
 	// Screen dim context
-	const smallScreen = useSmallScreen() || false;
+	const smallScreen = useSmallScreen() ?? false;
 	// Determines share of screen
 	const [leftExpanded, setLeftExpanded] = useState(false);
 	// Minimize left menu when small screen on swipe left
 	useSwipe({ onSwipeLeft: smallScreen && leftExpanded ? () => setLeftExpanded(false) : null });
 	
-	// --- DATE AND DEPENDENT HANDLERS ----------------------------------------------------------------
-	// Determines calendar view ('year', 'month', 'day'-ish)
-	const [span, setSpan] = useState('day');
-	// Day user most recently interacted with
-	const [selectedDate, setSelectedDate] = useState(normDate(new Date()));
-	// Array containing each date in view
-	const [days, setDays] = useState([]);
+	// --- DATE AND DEPENDENT HANDLERS ---------------------------------------------------------------
+	const { localTZ } = useTZ();
+	const [span, setSpan] = useState('day'); // Determines calendar view ('year', 'month', 'day')
+	const [selectedDate, setSelectedDate] = useState(normDate(new Date())); // Day user most recently interacted with
+
+	useEffect(() => (
+		setSpan(prev => ((smallScreen || leftExpanded) && span !== 'day') ? 'day' : prev)
+	), [smallScreen, leftExpanded]);
+
 	// Alter date range when necessary
-	useEffect(() => {
-		//console.log('left exp:', leftExpanded, 'smallScreen:', smallScreen);
-		setDays((smallScreen || leftExpanded) ? [selectedDate] : returnDates(selectedDate, 'day'));
-		if ((smallScreen || leftExpanded) && span !== 'day') { setSpan('day') }
-	}, [selectedDate, span, smallScreen, leftExpanded]);
+	const days = useMemo(() => (
+		(smallScreen || leftExpanded) ? [selectedDate] : defineCalendarDates(selectedDate, 'day')
+	), [selectedDate, span, smallScreen, leftExpanded, localTZ]);
+
+	useEffect(() => console.log('span', span), [span]);
+	useEffect(() => console.log('selectedDate:', selectedDate, '\ndays:', days), [days]);
 
 	// Update date range and span when month or day cell is clicked
 	const onCellClick = (date, view) => {
-		const updatedDate = new Date(date);
+		normedCheck(date);
+		const updatedDate = new Date(date.getTime());
 		if (view === 'year') {
 			updatedDate.setMonth(0);
 			updatedDate.setDate(1);
 		} else if (view === 'month') {
 			updatedDate.setDate(1);
 		}
+		updatedDate.setHours(0, 0, 0, 0);
 		setSelectedDate(updatedDate);
 		setSpan(view);
 	};

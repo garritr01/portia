@@ -2,7 +2,7 @@
 ## Bugs
 - Updated schedules don't remove the old instance until reload or selectedDateChange
 - USE A CONSISTENT METHOD FOR THE MF TIMEZONES
-	- Events before Aug 19 may be incorrectly shifted so its kinda cooked for actual times things took place
+	- Local events before Aug 19, 2025 are mostly incorrectly timed 
 ## UX Improvements
 - Update indenting so lines don't overlap values (might be nice to keep it seems to indicate fucked up logging?)
 - Add user settings, start with custom color scheme for calendar
@@ -11,8 +11,9 @@
 - Make width of events/recurs adjust with screen
 - Fix width of dayContent (scrollbar causing issues)
 - New event inherits from most recently recorded event's endtime?
-- Autofill '/' on path selection when not equal to a raw path already
-- Maintain keyNav without opening dropdown
+- Autofill '/' on path selection when not equal to a raw path already (maybe just use the path that matches the most consecutive if no current level matches)
+- Maintain keyNav without opening dropdown (fix double focusing)
+- Add time fields to form and event objs
 ## Features
 - Add deletes (utilize filesystem for large deletes and composite menu for small deletes)
 - Add filesystem

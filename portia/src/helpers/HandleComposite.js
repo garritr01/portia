@@ -37,17 +37,19 @@ export const makeEmptyCompletion = () => ({
 	endStamp: null,
 	tz: null,
 });
-export const initialCompositeState = {
+export const makeEmptyFlags = () => ({ form: false, event: false, completion: false, schedules: {} });
+export const makeEmptyErrors = () => ({ form: {}, event: {}, schedules: {} });
+export const makeEmptyComposite = () => ({
 	form: makeEmptyForm(),
 	event: makeEmptyEvent(),
 	schedules: {},
 	completion: makeEmptyCompletion(),
-	dirty: { form: false, event: false, completion: false, schedules: {} },
-	errors: { form: {}, event: {}, schedules: {} },
-	toDelete: { form: false, event: false, completion: false, schedules: {} }
-};
+	dirty: makeEmptyFlags(),
+	errors: makeEmptyErrors(),
+	toDelete: makeEmptyFlags()
+});
 
-// Recursive composite update helper
+// Drill into obj with path keys and update value
 const setNested = (obj, path, value) => {
 	if (path.length === 0) return value;
 	const [head, ...tail] = path;
@@ -67,110 +69,136 @@ const setNested = (obj, path, value) => {
 	};
 };
 
-// Build object full of falses mirroring passed in object at top level
-const buildFalseObj = (obj) => Object.keys(obj || {}).reduce((acc, k) => { 
-	acc[k] = false;
-	return acc;
-}, {});
+/**
+ * Create/update a flag object. At each key, if action set true, otherwise prev, otherwise default to false
+ * @param {Object} shapeObj - Determines keys needed for flag object
+ * @param {Object} prevFlags - Previous flags to use
+ * @param {Object} actions - Actions to determine whether flag needs to be changed
+ * @param {Object} overrides - Overrides passed with action
+ */
+const reconcileFlags = (shapeObj, prevFlags, actions, overrides) =>
+	Object.keys(shapeObj || {}).reduce((acc, k) => {
 
-// Update 'dirty' (true if was true or key in action)
-const mergeSchedulesDirty = (prevFlags = {}, action = {}) => Object.fromEntries(
-	Object.keys({ ...prevFlags, ...action }).map(k => 
-		[k, Boolean(prevFlags[k]) || k in action]
-	)
-);
+		if (['dirty', 'toDelete', 'errors'].includes(k)) { return acc }
+		if (k === 'schedules') { 
+			acc.schedules = reconcileFlags(
+				shapeObj?.schedules || {}, 
+				prevFlags?.schedules || {}, 
+				actions?.schedules || {}, 
+				overrides?.schedules || {}
+			);
+			return acc;
+		}
+
+		// If ovverides[k], use override value
+		const hasOverride = (Object.hasOwn(overrides || {}, k));
+		if (hasOverride) {
+			if (typeof overrides[k] !== 'boolean') { console.warn("Non-bool override flag in reconcileFlags: ", overrides, "\nWhile creating for shape: ", shapeObj) }
+			acc[k] = overrides[k];
+			return acc;
+		}
+
+		// If action[k], flag true
+		const hasAction = (Object.hasOwn(actions || {}, k));
+		if (hasAction) {
+			acc[k] = true;
+			return acc;
+		}
+		
+		// If prev[k], use prev
+		const hasPrev = (Object.hasOwn(prevFlags || {}, k));
+		if (hasPrev) {
+			if (typeof prevFlags[k] !== 'boolean') { console.warn("Non-bool prev flag in reconcileFlags: ", prevFlags, "\nWhile creating for shape: ", shapeObj) }
+			acc[k] = prevFlags[k];
+			return acc;
+		}
+
+		// If neither, flag false
+		acc[k] = false;
+		return acc;
+
+	}, {});
 
 /**
  * updateComposite reducer
  *
- * Action shapes:
- * - General: action.form | action.event | action.schedules (object of schedules keyed by id/new_key)
- * - drill:   { type: 'drill', path: ['form'|'event'|'schedules', ...], value, dirty? }
- * - delete:  { type: 'delete', path: ['form'|'event'|'schedules', key?], delete? }
- * - set:     { type: 'set', form?, event?, schedules?, errors? }
- *
- * Behavior:
- *  reset
- *    - Resets to a brand-new empty composite (dirty/toDelete cleared).
+ * Behavior(by type):
  *
  *  drill
- *    - Updates a nested path.
- *    - If path starts with 'schedules', marks that schedule key dirty.
- *    - Pass action.dirty === false to override and keep it not-dirty.
- *    - For form/event, marks the whole object dirty unless action.dirty === false.
+ *    - Updates a nested path. Dirties unless { dirty: false } passed with in action.
+ * 		- { type: 'drill', path: [objType, ...], value: someVal, dirty? }
  *
  *  delete
- *    - Flags for deletion (does NOT remove from state).
- *    - For schedules: sets toDelete.schedules[key] = true (or false if action.delete === false).
- *    - For form/event: sets toDelete.form|event = true (or false to undo).
- *
+ *    - Toggles flags for deletion on upsert (does NOT remove from state).
+ * 		- { type: 'delete', path: [objType, scheduleKey?], delete? }
+ * 
  *  set
- *    - Replaces provided objects and fully cleans flags for those objects.
- *    - dirty.* reset to false; toDelete.* reset to false for provided objects.
- *    - For schedules: toDelete.schedules and dirty.schedules are rebuilt with all-false for the new keys.
- *
- *  default
- *    - Merges any provided form/event/schedules/errors into state.
- *    - Marks dirty.form / dirty.event if those objects were included.
- *    - For schedules, expects action.schedules to be a DELTA (only changed/new keys);
- *      only those keys are marked dirty (existing true flags are preserved).
- *      If you pass the full map and want automatic diffing, replace mergeSchedulesDirty
- *      with a diff-based helper.
+ *    - Bulk update objects. Fallback to state. Allow a mirrored structured dirty and toDelete for manual setting.
+ * 		- { type: 'set', form?, event?, completion?, schedules?, dirty?, toDelete? }
+ * 
+ *  reset
+ *    - Bulk update objects. Fallback to empty. Allow a mirrored structured dirty and toDelete for manual setting.
+ * 		- { type: 'reset', form?, event?, completion?, schedules?, dirty?, toDelete? }
  */
 export const updateComposite = (state, action) => {
-	switch (action.type) {
+	const { type, ...actionRest } = action;
 
-		case "reset":
-			return initialCompositeState;
+	switch (type) {
 
 		case "delete":
+
+			// Separate leading key in path (objType) from rest of path
 			const [delObjType, ...deleteRest] = action.path;
 
+			if (delObjType === 'schedules' && deleteRest.length !== 1) { console.warn("Invalid attempt to mark schedule for deletion. path: ", action.path) }
+			if (delObjType !== 'schedules' && deleteRest.length !== 0) { console.warn(`Invalid attempt to delete ${delObjType}. path: `, action.path) }
+
 			if (delObjType === 'schedules') {
-				const key = deleteRest[0];
+				const key = deleteRest[0]; // Get schedule key (_id)
+
 				return {
-					...state,
+					...state, // Retain rest of state
 					toDelete: {
-						...state.toDelete,
+						...state.toDelete, // Retain rest of toDelete state
 						schedules: {
-							...state.toDelete.schedules,
-							[key]: action?.delete === false ? false : true
+							...state.toDelete.schedules, // Retain rest of toDelete.schedule state
+							[key]: action?.delete === false ? false : true // Toggle toDelete.schedule.key
 						}
 					}
 				};
 			}
 
 			return {
-				...state,
+				...state,  // Retain rest of state
 				toDelete: {
-					...state.toDelete,
-					[delObjType]: action?.delete === false ? false : true,
-					...((delObjType === 'event') ? { completion: action?.delete === false ? false : true } : {})
+					...state.toDelete, // Retain rest of toDelete state
+					[delObjType]: action?.delete === false ? false : true, // Toggle toDelete[objType]
+					...((delObjType === 'event') ? { completion: action?.delete === false ? false : true } : {}) // Sync completion deletion with event
 				}
 			};
 
 		case "drill":
+			// Separate leading key in path (objType) from rest of path
 			const [drillObjType, ...drillRest] = action.path;
 
 			if (drillObjType === 'schedules') {
+				const key = drillRest[0]; // Get schedule key (_id)
 
-				const key = drillRest[0];
 				return {
-					...state,
-					schedules: setNested(state.schedules, drillRest, action.value),
+					...state, // Retain rest of state
+					schedules: setNested(state.schedules, drillRest, action.value), // Drill into path and update
 					dirty: {
-						...state.dirty,
-						// Dirty if already dirty or the edited index
+						...state.dirty, // Retain rest of dirty state
 						schedules: {
-							...state.dirty.schedules,
-							[key]: action?.dirty === false ? false : true
+							...state.dirty.schedules, // Retain rest of dirty.schedules state
+							[key]: action?.dirty === false ? false : true // Toggle dirty.schedules.key
 						}
 					},
-					toDelete: {
-						...state.toDelete,
+					toDelete: { // Create a toDelete state for new schedule
+						...state.toDelete, // Retain rest of toDelete state
 						schedules: {
-							...state.toDelete.schedules,
-							[key]: state.toDelete.schedules?.[key] === undefined ? false : state.toDelete.schedules?.[key]
+							...state.toDelete.schedules, // Retain rest of toDelete.schedules state
+							[key]: state.toDelete.schedules?.[key] ?? false // Use prev toDelete.schedules.key state unless absent, then initialize as false
 						}
 					}
 				};
@@ -178,63 +206,29 @@ export const updateComposite = (state, action) => {
 			}
 
 			return {
-				...state,
-				[drillObjType]: setNested(state[drillObjType], drillRest, action.value),
+				...state, // Retain rest of state
+				[drillObjType]: setNested(state[drillObjType], drillRest, action.value), // Drill into path and update
 				dirty: {
-					...state.dirty,
-					[drillObjType]: action?.dirty === false ? false : true,
-				},
+					...state.dirty, // Retain rest of dirty state
+					[drillObjType]: action?.dirty === false ? false : true, // Mark dirty unless dirty flag passed as false
+				}
 			}
 	
 		case "set":
-			const setForm = action.form ?? state.form;
-			const setEvent = action.event ?? state.event;
-			const setCompletion = action.completion ?? state.completion;
-			const setSchedules = action.schedules ?? state.schedules;
-			const setErrors = action.errors ?? state.errors;
+			const setNext = { ...state, ...actionRest };
+			setNext.dirty = reconcileFlags(setNext, { ...(state.dirty || {}), ...(action.dirty || {}) }, actionRest, (action.dirty || {}));
+			setNext.toDelete = reconcileFlags(setNext, { ...(state.toDelete || {}), ...(action.toDelete || {}) }, {}, (action.toDelete || {}));
+			return setNext;
 
-			return {
-				form: setForm,
-				event: setEvent,
-				completion: setCompletion,
-				schedules: setSchedules,
-				errors: setErrors,
-				toDelete: {
-					form: action.form ? false : state.toDelete.form,
-					event: action.event ? false : state.toDelete.event,
-					completion: action.completion ? false : state.toDelete.completion,
-					schedules: action.schedules ? buildFalseObj(setSchedules) : state.toDelete.schedules,
-				},
-				dirty: {
-					form: false,
-					event: false,
-					completion: action?.dirtyComplete ?? false,
-					schedules: action.schedules ? buildFalseObj(setSchedules) : state.dirty.schedules,
-				}
-			};
-
+		case "reset":
+			const resetNext = { ...makeEmptyComposite(), ...actionRest };
+			resetNext.dirty = reconcileFlags(resetNext, (action.dirty || {}), {}, {});
+			resetNext.toDelete = reconcileFlags(resetNext, (action.toDelete || {}), {}, {});
+			return resetNext;
+		
 		default:
-
-			const defForm = action.form ?? state.form;
-			const defEvent = action.event ?? state.event;
-			const defCompletion = action.completion ?? state.completion;
-			const defSchedules = action.schedules ?? state.schedules;
-			const defErrors = action.errors ?? state.errors;
-
-			return {
-				form: defForm,
-				event: defEvent,
-				completion: defCompletion,
-				schedules: defSchedules,
-				errors: defErrors,
-				toDelete: state.toDelete,
-				dirty: {
-					form: state.dirty.form || Boolean(action.form),
-					event: state.dirty.event || Boolean(action.event),
-					completion: state.dirty.completion || Boolean(action.completion),
-					schedules: mergeSchedulesDirty(state.dirty.schedules, action.schedules),
-				},
-			}
+			console.warn(`Invalid updateComposite action type: '${type}'`);
+			return state;
 	}
 };
 
@@ -248,26 +242,78 @@ export const initEmptyComposite = (date, reduceComposite) => {
 	reduceComposite({ type: 'drill', path: ['event', 'startStamp'], value: clicked });
 };
 
+// Find form with path
+const findForm = (path, forms, formIDsByPath) => {
+	const newFormID = formIDsByPath[path];
+	const newForm = !newFormID ? undefined : forms?.[newFormID];
+	if (!newForm) { 
+		console.warn(`No form found with path: '${path}' and derived ID: '${newFormID}'`) 
+		return makeEmptyForm();
+	}
+	return newForm ?? makeEmptyForm();
+};
+
+// Find schedules with path
+const findSchedules = (path, schedules, scheduleIDsByPath) => {
+	console.log("ScheduleIDsByPath", scheduleIDsByPath);
+	const newSchedIDs = scheduleIDsByPath?.[path];
+	if (!newSchedIDs) { return {} }
+	const newScheds = Object.fromEntries(
+		newSchedIDs.map(_id => {
+			const newSched = schedules?.[_id] ?? {};
+			if (!newSched) { console.warn(`No schedule found with _id ${_id}`)}
+			return [_id, newSched];
+		})
+	);
+	return newScheds || {};
+};
+
+// Find completion with _id
+const findCompletion = (compID, completions) => {
+	const newCompletion = completions?.[compID];
+	if (compID && !newCompletion) { console.warn(`Completion not found with _id: ${compID}.`)}
+	return newCompletion || makeEmptyCompletion();
+};
+
+// Autofill event info using form info
+export const autofillEventInfo = (info) => {
+	return (info ?? []).map(f => {
+		const { suggestions, baseValue, placeholder, ...cleanF } = f;
+		return ({
+			...cleanF,
+			content:
+				f.type === 'input' ? (
+					baseValue ? [baseValue] : ['']
+				)
+				: f.type === 'text' ? (
+					baseValue ? baseValue : ''
+				)
+				: null
+		});
+	})
+}
+
 // Create composite based on event
-export const createCompositeFromEvent = (event, forms, completions, schedules, reduceComposite) => {
+export const createCompositeFromEvent = (event, forms, completions, schedules, formIDsByPath, scheduleIDsByPath, reduceComposite) => {
+	console.log("Creating composite from event.");
 
 	// Should always be found
-	const newForm = forms.find(f => f.path === event.path);
+	const newForm = findForm(event.path, forms, formIDsByPath);
 
 	// Find completion if exists
-	const newCompletion = completions.find(c => c._id === event.completionID);
+	const newCompletion = findCompletion(event.completionID, completions);
 
 	// None to many may be found
-	const newSchedList = schedules.filter(s => s.path === event.path);
-	const newScheds = Object.fromEntries(newSchedList.map(s => [s._id, s]));
+	const newScheds = findSchedules(event.path, schedules, scheduleIDsByPath);
 
+	// Autofill endStamp with current time for pending event
 	const newEvent = { 
 		...event,
-		endStamp: (event.complete === 'pending' && newForm.includeStart) ? new Date() : event.endStamp // Update endStamp to now if pending
+		endStamp: (event.complete === 'pending' && newForm.includeStart) ? new Date() : event.endStamp
 	};
 
 	reduceComposite({
-		type: 'set',
+		type: 'reset',
 		event: assignKeys(newEvent),
 		form: assignKeys(newForm),
 		completion: newCompletion,
@@ -277,50 +323,62 @@ export const createCompositeFromEvent = (event, forms, completions, schedules, r
 };
 
 // Create composite based on recur
-export const createCompositeFromRecur = (recur, forms, schedules, reduceComposite) => {
+export const createCompositeFromRecur = (recur, forms, schedules, formIDsByPath, scheduleIDsByPath, reduceComposite) => {
+	console.log("Creating composite from recur.");
+
 	const { isRecur, ...recurClean } = recur;
 	const { tz, _id, ...eventBasis } = recurClean;
 
-	const newSchedList = schedules.filter(s => s.path === recur.path);
-	const newScheds = Object.fromEntries(newSchedList.map(s => [s._id, s]));
+	// Toggle includeStart to true if recur startStamp and endStamp are different times 
+	const newForm = {
+		...findForm(recur.path, forms, formIDsByPath),
+		...((recur.startStamp.getTime() !== recur.endStamp.getTime()) ? { includeStart: true } : {})
+	};
 
+	const newScheds = findSchedules(recur.path, schedules, scheduleIDsByPath);
+
+	// New completion means new event, meaning null ID to be filled on event save (backend)
 	const newCompletion = {
 		...recurClean,
 		eventID: null,
 	};
 
-	let newForm = forms.find(f => f.path === recur.path);
-	if (!newForm.includeStart && recur.startStamp.getTime() !== recur.endStamp.getTime()) {
-		newForm = { ...newForm, includeStart: true }
-	}
-
-	let newEvent = { 
+	const newEvent = { 
 		...makeEmptyEvent(), 
 		...eventBasis,
 		completionID: _id,
-		info: newForm.info.map(f => {
-			const { suggestions, baseValue, placeholder, ...cleanF } = f;
-			return({ 
-				...cleanF,
-				content: 
-					f.type === 'input' ? (
-						baseValue ? [baseValue] : ['']
-					) 
-					: f.type === 'text' ? (
-						baseValue ? baseValue : ''
-					) 
-					: null
-				});
-		})
+		info: autofillEventInfo(newForm.info)
 	};
 
 	//console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
 	reduceComposite({ 
-		type: 'set', 
+		type: 'reset', 
 		event: assignKeys(newEvent), 
 		form: assignKeys(newForm), 
 		completion: newCompletion,
-		dirtyComplete: true,
+		schedules: newScheds,
+		dirty: { completion: true }
+	});
+};
+
+// Create empty event from path load
+export const createCompositeFromPath = (path, forms, schedules, formIDsByPath, scheduleIDsByPath, reduceComposite) => {
+
+	console.log("Creating composite from path: ", path);
+
+	const newForm = findForm(path, forms, formIDsByPath);
+	const newScheds = findSchedules(path, schedules, scheduleIDsByPath);
+	const newEvent = {
+		...makeEmptyEvent(),
+		info: autofillEventInfo(newForm?.info)
+	};
+
+	//console.log("Creating from recur, event:", assignKeys(newEvent), "\n form:", assignKeys(newForm))
+	reduceComposite({ 
+		type: 'reset', 
+		event: assignKeys(newEvent),
+		form: assignKeys(newForm),
 		schedules: newScheds
 	});
 };
+
